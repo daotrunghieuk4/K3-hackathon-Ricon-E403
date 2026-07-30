@@ -1022,17 +1022,21 @@ function renderAdminDashboard() {
   const gapContainer = document.getElementById("adminClassGapContainer");
   if (!gapContainer) return;
 
-  gapContainer.innerHTML = metrics.topicGapDistribution.map(t => `
-    <div style="display:flex; flex-direction:column; gap:0.35rem;">
-      <div style="display:flex; justify-content:space-between; font-size:0.85rem; font-weight:600;">
-        <span>${t.name}</span>
-        <span style="color:${t.gapPct > 25 ? 'var(--danger)' : 'var(--success)'};">${t.gapPct}% học viên yếu (${t.count} HV)</span>
+  if (!metrics.topicGapDistribution || metrics.topicGapDistribution.length === 0) {
+    gapContainer.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-muted); font-size:0.88rem;"><i class="ri-inbox-line" style="font-size:1.5rem; display:block; margin-bottom:0.4rem;"></i>Chưa có dữ liệu làm bài của học viên. Hệ thống đang chờ dữ liệu thực tế từ các bài quiz.</div>`;
+  } else {
+    gapContainer.innerHTML = metrics.topicGapDistribution.map(t => `
+      <div style="display:flex; flex-direction:column; gap:0.35rem;">
+        <div style="display:flex; justify-content:space-between; font-size:0.85rem; font-weight:600;">
+          <span>${t.name}</span>
+          <span style="color:${t.gapPct > 25 ? 'var(--danger)' : 'var(--success)'};">${t.gapPct}% học viên yếu (${t.count} HV)</span>
+        </div>
+        <div class="gap-progress-bg" style="height:10px;">
+          <div class="gap-progress-fill" style="width: ${t.gapPct}%; background: ${t.gapPct > 25 ? 'var(--danger)' : 'var(--warning)'};"></div>
+        </div>
       </div>
-      <div class="gap-progress-bg" style="height:10px;">
-        <div class="gap-progress-fill" style="width: ${t.gapPct}%; background: ${t.gapPct > 25 ? 'var(--danger)' : 'var(--warning)'};"></div>
-      </div>
-    </div>
-  `).join('');
+    `).join('');
+  }
 }
 
 function renderAdminStudents(studentsToRender = null) {
@@ -1042,7 +1046,7 @@ function renderAdminStudents(studentsToRender = null) {
   const students = studentsToRender || window.VLEARN_SAMPLE_DATA.studentsList || [];
 
   if (students.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:2rem;">Không tìm thấy học viên nào phù hợp với bộ lọc.</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:2rem;"><i class="ri-user-unfollow-line" style="font-size:1.5rem; display:block; margin-bottom:0.4rem;"></i>Chưa có dữ liệu học viên trong lớp. Dữ liệu thật sẽ hiển thị tự động khi học viên làm bài quiz.</td></tr>`;
     return;
   }
 

@@ -1,0 +1,11 @@
+{
+  "name": "vlearn-quiz-agent-root",
+  "version": "1.0.0",
+  "description": "VLearn Active Recall Quiz Generator & AI Tutor Root Entry",
+  "scripts": {
+    "postinstall": "npm --prefix codebase install",
+    "start": "npm --prefix codebase start",
+    "dev": "npm --prefix codebase start",
+    "eval": "npm --prefix codebase run eval"
+  }
+}
