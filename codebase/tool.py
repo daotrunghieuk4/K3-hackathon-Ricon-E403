@@ -397,6 +397,11 @@ def evaluate_parse_quiz_request(case, result):
     if "lessonId" in expected and result.get("lessonId") != expected["lessonId"]:
         issues.append(f"lessonId = {result.get('lessonId')}, kỳ vọng {expected['lessonId']}")
 
+    if "requestedCount" in expected and result.get("requestedCount") != expected["requestedCount"]:
+        issues.append(
+            f"requestedCount = {result.get('requestedCount')}, kỳ vọng {expected['requestedCount']}"
+        )
+
     if expected.get("needsClarification"):
         if not result.get("needsClarification"):
             issues.append("Kỳ vọng needsClarification=true (thông tin mơ hồ/ngoài kho) nhưng AI không hỏi lại")
@@ -422,6 +427,80 @@ def load_cases(path):
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
     return data["cases"] if isinstance(data, dict) and "cases" in data else data
+
+
+def validate_golden_set(golden_set_path):
+    """Kiểm tra coverage của golden set mà không gọi API AI."""
+    cases = load_cases(golden_set_path)
+    errors = []
+    warnings = []
+
+    case_ids = [case.get("case_id") for case in cases]
+    duplicate_ids = sorted({case_id for case_id in case_ids if case_ids.count(case_id) > 1})
+    if duplicate_ids:
+        errors.append(f"case_id bị trùng: {', '.join(duplicate_ids)}")
+
+    if len(cases) < 20:
+        errors.append(f"Golden set chỉ có {len(cases)} case, yêu cầu tối thiểu 20")
+
+    unknown_targets = sorted(
+        {
+            case.get("target_function")
+            for case in cases
+            if case.get("target_function") not in CALLERS
+        }
+    )
+    if unknown_targets:
+        errors.append(f"target_function không hỗ trợ: {', '.join(map(str, unknown_targets))}")
+
+    missing_fields = []
+    for index, case in enumerate(cases, start=1):
+        for field in ("case_id", "target_function", "difficulty_class", "source", "input", "expected"):
+            if field not in case:
+                missing_fields.append(f"case #{index} thiếu '{field}'")
+    errors.extend(missing_fields)
+
+    difficulty_counts = {}
+    for marker in ("①", "②", "③", "④"):
+        difficulty_counts[marker] = sum(
+            1 for case in cases if str(case.get("difficulty_class", "")).startswith(marker)
+        )
+        if difficulty_counts[marker] < 2:
+            errors.append(
+                f"Lớp chỗ khó {marker} chỉ có {difficulty_counts[marker]} case, yêu cầu tối thiểu 2"
+            )
+
+    normal_count = sum(case.get("case_type") == "normal" for case in cases)
+    rare_count = sum(case.get("case_type") == "rare" for case in cases)
+    real_source_count = sum(
+        str(case.get("source", "")).startswith("data/vlearn-pack/") for case in cases
+    )
+
+    if not 8 <= normal_count <= 10:
+        errors.append(f"case thường = {normal_count}, yêu cầu trong khoảng 8-10")
+    if not 2 <= rare_count <= 4:
+        errors.append(f"case hiếm = {rare_count}, yêu cầu trong khoảng 2-4")
+    if real_source_count < 10:
+        errors.append(
+            f"case từ chatlog/transcript thật = {real_source_count}, yêu cầu tối thiểu 10"
+        )
+
+    if len(cases) > 20:
+        warnings.append(
+            f"Golden set có {len(cases)} case; rubric chỉ yêu cầu tối thiểu 20, hãy cân nhắc chi phí API"
+        )
+
+    summary = {
+        "total_cases": len(cases),
+        "normal_cases": normal_count,
+        "rare_cases": rare_count,
+        "real_source_cases": real_source_count,
+        "difficulty_class_counts": difficulty_counts,
+        "errors": errors,
+        "warnings": warnings,
+        "valid": not errors,
+    }
+    return summary
 
 
 def run_golden_set(golden_set_path, out_path):
@@ -450,6 +529,8 @@ def run_golden_set(golden_set_path, out_path):
                 "case_id": case_id,
                 "target_function": target,
                 "difficulty_class": case.get("difficulty_class"),
+                "case_type": case.get("case_type"),
+                "source": case.get("source"),
                 "status": "PASS" if ok else "FAIL",
                 "issues": issues,
                 "output": output,
@@ -459,11 +540,39 @@ def run_golden_set(golden_set_path, out_path):
     total = len(cases)
     pct = round(passed_count / total * 100, 1) if total else 0.0
 
+    generated_questions = [
+        question
+        for result in results
+        if result["target_function"] == "generateQuestionBank" and result["output"]
+        for question in result["output"].get("questions", [])
+    ]
+    cited_questions = sum(
+        bool((question.get("citation") or "").strip()) for question in generated_questions
+    )
+    citation_rate = (
+        round(cited_questions / len(generated_questions) * 100, 1)
+        if generated_questions
+        else 0.0
+    )
+    quality_bar = {
+        "case_pass_rate_target_pct": 85.0,
+        "citation_presence_target_pct": 100.0,
+        "case_pass_rate_met": pct >= 85.0,
+        "citation_presence_pct": citation_rate,
+        "citation_presence_met": bool(generated_questions) and citation_rate == 100.0,
+    }
+    quality_bar["overall_met"] = (
+        quality_bar["case_pass_rate_met"] and quality_bar["citation_presence_met"]
+    )
+
     run_record = {
         "run_at": datetime.now(timezone.utc).isoformat(),
+        "golden_set": golden_set_path,
+        "model": get_model(),
         "total_cases": total,
         "passed": passed_count,
         "pass_rate_pct": pct,
+        "quality_bar": quality_bar,
         "results": results,
     }
 
@@ -486,7 +595,17 @@ def main():
     parser.add_argument(
         "--out", default=None, help="Mặc định: eval/run_results_<timestamp>.json"
     )
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Chỉ kiểm tra cấu trúc/coverage golden set, không gọi Gemini API",
+    )
     args = parser.parse_args()
+
+    if args.validate_only:
+        summary = validate_golden_set(args.golden_set)
+        print(json.dumps(summary, ensure_ascii=False, indent=2))
+        raise SystemExit(0 if summary["valid"] else 1)
 
     out_path = args.out or f"eval/run_results_{int(time.time())}.json"
     run_golden_set(args.golden_set, out_path)

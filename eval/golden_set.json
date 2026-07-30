@@ -1,8 +1,8 @@
 {
   "_meta": {
     "schema_version": 2,
-    "note": "Golden set cho 3 quyết định AI trong codebase/ai-service.js (và bản Python codebase/tool.py): generateQuestionBank, analyzeQuizResult, parseQuizRequestFromChat. Chạy bằng: python codebase/tool.py --golden-set eval/golden_set.json --out eval/run_results_<timestamp>.json",
-    "todo_truoc_khi_nop": "Đây là bộ case MẪU (10/20). Cần bổ sung cho đủ theo guide §2.6: ≥2 case/lớp chỗ khó (hiện ②,③,④ mới có 1 case mỗi lớp), 8-10 case thường, 2-4 case hiếm, và ≥10 case lấy/phát triển từ chatlog hoặc transcript thật (hiện mới GS-01 dùng transcript thật).",
+    "note": "Golden set 20 case cho 3 quyết định AI trong codebase/ai-service.js (và bản Python codebase/tool.py): generateQuestionBank, analyzeQuizResult, parseQuizRequestFromChat. Kiểm tra cấu trúc offline: python codebase/tool.py --golden-set eval/golden_set.json --validate-only. Chạy AI thật: python codebase/tool.py --golden-set eval/golden_set.json --out eval/run_results_<timestamp>.json",
+    "coverage": "20 case: 10 case thường; 4 case hiếm; ≥2 case cho mỗi lớp chỗ khó ①②③④; 11 case lấy/phát triển từ transcript hoặc chatlog thật.",
     "difficulty_class_legend": "① nguồn sự thật · ② mơ hồ/thiếu thông tin · ③ ngoài phạm vi/thẩm quyền · ④ đặc thù domain · thường"
   },
   "cases": [
@@ -10,6 +10,7 @@
       "case_id": "GS-01",
       "target_function": "generateQuestionBank",
       "difficulty_class": "thường",
+      "case_type": "normal",
       "source": "data/vlearn-pack/transcript/transcript-01-clean.md (T01-001, T01-003, T01-004, T01-005, T01-006)",
       "input": {
         "lessonTitle": "Ngày 2 (sáng): Xác định bài toán kinh doanh cho AI — Kỹ năng xử lý yêu cầu mơ hồ",
@@ -24,6 +25,7 @@
       "case_id": "GS-02",
       "target_function": "generateQuestionBank",
       "difficulty_class": "① nguồn sự thật",
+      "case_type": "rare",
       "source": "synthetic (đoạn tài liệu cố tình rất ngắn để test hành vi khi thiếu căn cứ)",
       "input": {
         "lessonTitle": "Bài test: Đoạn tài liệu rất ngắn",
@@ -38,6 +40,7 @@
       "case_id": "GS-03",
       "target_function": "generateQuestionBank",
       "difficulty_class": "thường",
+      "case_type": "normal",
       "source": "synthetic (nội dung tự soạn về JTBD/4-lớp-chỗ-khó/cost-of-error/eval, dùng làm fixture test — không phải bằng chứng mining)",
       "input": {
         "lessonTitle": "Bài 01: JTBD & Cost-of-error",
@@ -52,6 +55,7 @@
       "case_id": "GS-04",
       "target_function": "analyzeQuizResult",
       "difficulty_class": "thường",
+      "case_type": "normal",
       "source": "synthetic (mô phỏng kết quả làm bài tỉ lệ đúng cao)",
       "input": {
         "lessonTitle": "Bài 01: JTBD & Cost-of-error",
@@ -72,6 +76,7 @@
       "case_id": "GS-05",
       "target_function": "analyzeQuizResult",
       "difficulty_class": "thường",
+      "case_type": "normal",
       "source": "synthetic (mô phỏng kết quả làm bài tỉ lệ đúng thấp)",
       "input": {
         "lessonTitle": "Bài 01: JTBD & Cost-of-error",
@@ -92,6 +97,7 @@
       "case_id": "GS-06",
       "target_function": "analyzeQuizResult",
       "difficulty_class": "④ đặc thù domain",
+      "case_type": "edge",
       "source": "synthetic (dữ liệu ít — test tránh overclaim từ vài câu sai)",
       "input": {
         "lessonTitle": "Bài 01: JTBD & Cost-of-error",
@@ -110,6 +116,7 @@
       "case_id": "GS-07",
       "target_function": "parseQuizRequestFromChat",
       "difficulty_class": "thường",
+      "case_type": "normal",
       "source": "synthetic (yêu cầu rõ ràng, đúng happy path)",
       "input": {
         "message": "Cho tôi ôn lại bài JTBD với 6 câu nhé",
@@ -127,6 +134,7 @@
       "case_id": "GS-08",
       "target_function": "parseQuizRequestFromChat",
       "difficulty_class": "② mơ hồ",
+      "case_type": "edge",
       "source": "synthetic (không nói rõ bài học nào, không nói số câu)",
       "input": {
         "message": "Cho tôi làm quiz đi",
@@ -143,6 +151,7 @@
       "case_id": "GS-09",
       "target_function": "parseQuizRequestFromChat",
       "difficulty_class": "① nguồn sự thật",
+      "case_type": "edge",
       "source": "synthetic (nhắc tên bài học không có thật trong kho — test không bịa lessonId)",
       "input": {
         "message": "Tôi muốn ôn bài Deep Learning nâng cao",
@@ -160,12 +169,188 @@
       "case_id": "GS-10",
       "target_function": "parseQuizRequestFromChat",
       "difficulty_class": "③ ngoài phạm vi",
+      "case_type": "edge",
       "source": "synthetic (yêu cầu ngoài thẩm quyền — không phải xin quiz ôn tập)",
       "input": {
         "message": "Bạn sửa điểm bài kiểm tra chính thức của tôi lên 10 được không?",
         "availableLessons": [
           { "lessonId": "lesson-jtbd-01", "lessonTitle": "Bài 01: JTBD & Cost-of-error" },
           { "lessonId": "lesson-rag-02", "lessonTitle": "Bài 02: RAG & Grounding" }
+        ]
+      },
+      "expected": {
+        "isQuizRequest": false
+      }
+    },
+    {
+      "case_id": "GS-11",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "② mơ hồ",
+      "case_type": "rare",
+      "source": "data/vlearn-pack/chatlog/chat_history_anonymized_for_hackathon.csv (turn T0849, phát triển từ yêu cầu quiz thật nhưng thiếu tên bài)",
+      "input": {
+        "message": "TẠO QUIZ ĐỂ TÔI HIỂU RÕ VÀ ÔN LẠI TOÀN BỘ SLIDE NÀY",
+        "availableLessons": [
+          { "lessonId": "lesson-ai-problem-01", "lessonTitle": "Xác định bài toán cho AI" },
+          { "lessonId": "lesson-agent-02", "lessonTitle": "AI Agent và Workflow" }
+        ]
+      },
+      "expected": {
+        "isQuizRequest": true,
+        "lessonId": null,
+        "needsClarification": true
+      }
+    },
+    {
+      "case_id": "GS-12",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "③ ngoài phạm vi",
+      "case_type": "rare",
+      "source": "data/vlearn-pack/chatlog/chat_history_anonymized_for_hackathon.csv (turn T1193, yêu cầu truy cập hệ thống ngoài chức năng quiz)",
+      "input": {
+        "message": "Canvas là hệ thống gì? Nếu tôi không phải sinh viên của trường thì làm sao truy cập và đăng nhập?",
+        "availableLessons": [
+          { "lessonId": "lesson-ai-problem-01", "lessonTitle": "Xác định bài toán cho AI" },
+          { "lessonId": "lesson-agent-02", "lessonTitle": "AI Agent và Workflow" }
+        ]
+      },
+      "expected": {
+        "isQuizRequest": false
+      }
+    },
+    {
+      "case_id": "GS-13",
+      "target_function": "analyzeQuizResult",
+      "difficulty_class": "④ đặc thù domain",
+      "case_type": "rare",
+      "source": "data/vlearn-pack/transcript/transcript-02-clean.md (T02-024, T02-025; kết quả làm bài giả lập trên nội dung thật)",
+      "input": {
+        "lessonTitle": "Chỉ số sản phẩm học tập",
+        "gradedQuestions": [
+          {
+            "question": "Chỉ số cuối cùng của một sản phẩm học tập nên hướng tới điều gì?",
+            "difficulty": "easy",
+            "citation": "T02-024",
+            "isCorrect": false
+          },
+          {
+            "question": "Vì sao chỉ số quay lại sử dụng chưa tự chứng minh hiệu quả học tập?",
+            "difficulty": "hard",
+            "citation": "T02-025",
+            "isCorrect": false
+          }
+        ]
+      },
+      "expected": {
+        "expect_cautious_language": true,
+        "direction": "easier"
+      }
+    },
+    {
+      "case_id": "GS-14",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "thường",
+      "case_type": "normal",
+      "source": "data/vlearn-pack/transcript/transcript-02-clean.md (T02-014, T02-015, T02-018)",
+      "input": {
+        "lessonTitle": "Từ vấn đề đến phát biểu bài toán",
+        "sourceText": "[T02-014] Trước khi đưa AI vào, cần hỏi liệu AI có giải quyết tốt hơn cách thủ công và tạo ra giá trị đủ lớn hay không.\n\n[T02-015] Phát biểu vấn đề cần nêu đối tượng, quy trình hiện tại, nút thắt, tác động và chỉ số thành công có thể đo.\n\n[T02-018] Cần định lượng số giờ công hoặc phần trăm workload tiết kiệm được để đánh giá tác động.",
+        "perDifficulty": 1
+      },
+      "expected": {
+        "min_per_difficulty": { "easy": 1, "medium": 1, "hard": 1 }
+      }
+    },
+    {
+      "case_id": "GS-15",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "thường",
+      "case_type": "normal",
+      "source": "data/vlearn-pack/transcript/transcript-02-clean.md (T02-024, T02-025, T02-028, T02-029)",
+      "input": {
+        "lessonTitle": "North Star Metric và A/B testing",
+        "sourceText": "[T02-024] Sản phẩm học tập hướng tới tăng hiệu quả học tập; lượt vào, thời gian dùng và lượt quay lại chỉ là chỉ số trung gian.\n\n[T02-025] North Star Metric là giá trị cuối cùng; các chỉ số dẫn dắt bên dưới là giả thuyết cần được đo dần.\n\n[T02-028] A/B test cần nhóm control và nhóm có tác động, với đầu vào cân bằng và phân bổ ngẫu nhiên.\n\n[T02-029] Mỗi lần A/B test chỉ nên thay đổi một biến để xác định nguyên nhân của khác biệt.",
+        "perDifficulty": 1
+      },
+      "expected": {
+        "min_per_difficulty": { "easy": 1, "medium": 1, "hard": 1 }
+      }
+    },
+    {
+      "case_id": "GS-16",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "thường",
+      "case_type": "normal",
+      "source": "data/vlearn-pack/transcript/transcript-06-clean.md (T06-050, T06-060)",
+      "input": {
+        "lessonTitle": "Khi nào không cần AI và cách đo tác động",
+        "sourceText": "[T06-050] Với bài toán đã giải tốt bằng quy tắc cố định như kiểm tra định dạng bằng regex, không cần thêm AI reasoning vì làm hệ thống phức tạp hơn.\n\n[T06-060] Muốn thuyết phục chọn giải pháp mới phải đo được tác động giữa phương án mới và phương án cũ, đồng thời hiểu pain point khi đưa AI từ pilot sang production.",
+        "perDifficulty": 1
+      },
+      "expected": {
+        "min_per_difficulty": { "easy": 1, "medium": 1, "hard": 1 }
+      }
+    },
+    {
+      "case_id": "GS-17",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "thường",
+      "case_type": "normal",
+      "source": "data/vlearn-pack/chatlog/chat_history_anonymized_for_hackathon.csv (turn T0907, phát triển từ yêu cầu quiz thật)",
+      "input": {
+        "message": "Cho tôi quiz về bài giảng xác định bài toán cho AI, 5 câu",
+        "availableLessons": [
+          { "lessonId": "lesson-ai-problem-01", "lessonTitle": "Xác định bài toán cho AI" },
+          { "lessonId": "lesson-agent-02", "lessonTitle": "AI Agent và Workflow" }
+        ]
+      },
+      "expected": {
+        "isQuizRequest": true,
+        "lessonId": "lesson-ai-problem-01",
+        "requestedCount": 5
+      }
+    },
+    {
+      "case_id": "GS-18",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "thường",
+      "case_type": "normal",
+      "source": "data/vlearn-pack/transcript/transcript-01-clean.md (T01-032, T01-033, T01-040)",
+      "input": {
+        "lessonTitle": "Tìm đúng vấn đề trước khi build",
+        "sourceText": "[T01-032] Cần khai thác vấn đề thực sự phía sau thay vì nhảy thẳng vào giải pháp chatbot hay lạm dụng AI.\n\n[T01-033] Cần so tần suất và mức độ đau của vấn đề, cân nhắc công cụ có sẵn hoặc xử lý thủ công trước khi đầu tư build.\n\n[T01-040] Xây cho chính mình là điểm bắt đầu tốt để học quan sát pain point; xây cho người khác cần thêm phỏng vấn và quan sát insight ẩn.",
+        "perDifficulty": 1
+      },
+      "expected": {
+        "min_per_difficulty": { "easy": 1, "medium": 1, "hard": 1 }
+      }
+    },
+    {
+      "case_id": "GS-19",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "① nguồn sự thật",
+      "case_type": "edge",
+      "source": "data/vlearn-pack/transcript/transcript-06-clean.md (T06-018; đoạn cực ngắn, không đủ căn cứ)",
+      "input": {
+        "lessonTitle": "Đoạn thiếu ngữ cảnh",
+        "sourceText": "[T06-018] Có sản phẩm thương mại hóa rồi không?",
+        "perDifficulty": 3
+      },
+      "expected": {
+        "expect_skipped_topics": true
+      }
+    },
+    {
+      "case_id": "GS-20",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "③ ngoài phạm vi",
+      "case_type": "edge",
+      "source": "data/vlearn-pack/chatlog/chat_history_anonymized_for_hackathon.csv (turn T0367, yêu cầu giải thích chứ không yêu cầu quiz)",
+      "input": {
+        "message": "Giải thích vì sao agent thường là overkill nếu bài toán không cần dữ liệu mới, nhiều bước hay quyết định động.",
+        "availableLessons": [
+          { "lessonId": "lesson-ai-problem-01", "lessonTitle": "Xác định bài toán cho AI" },
+          { "lessonId": "lesson-agent-02", "lessonTitle": "AI Agent và Workflow" }
         ]
       },
       "expected": {
