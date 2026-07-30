@@ -8,9 +8,11 @@
 ## Thành viên nhóm & Phân công
 | Họ tên | Mã học viên | Vai trò & Phân công chính | Reflection File |
 |---|---|---|---|
-| **Nguyễn Trung Hiếu** | `2A202601457` | **AI Tool & Prompts**: AI Spec (`spec.md`), System Prompts (`ai-service.js`), Grounding Engine (`server.js`) | [`reflection/nguyen-trung-hieu.md`](reflection/nguyen-trung-hieu.md) |
-| **Đào Trung Hiếu** | `2A202601059` | **Test & Quality**: Golden Set 20 cases (`eval/`), Script Eval (`run_eval.ps1`), Validation Log (`validation/`) | [`reflection/dao-trung-hieu.md`](reflection/dao-trung-hieu.md) |
+| **Nguyễn Trung Hiếu** | `2A202601457` | **AI Tool & Prompts**: AI Spec (`spec.md`), System Prompts (`ai-service.js`), Grounding Engine | [`reflection/nguyen-trung-hieu.md`](reflection/nguyen-trung-hieu.md) |
+| **Đào Trung Hiếu** | `2A202601059` | **Test & Quality**: Golden Set 20 cases (`eval/`), Script Eval (`run_eval.ps1`), Validation Log | [`reflection/dao-trung-hieu.md`](reflection/dao-trung-hieu.md) |
 | **Nguyễn Văn An** | `2A202601817` | **Frontend & UI/UX**: LMS Layout (`index.html`), Interactivity (`app.js`), Design Tokens (`styles.css`) | [`reflection/nguyen-van-an.md`](reflection/nguyen-van-an.md) |
+| **Phạm Thái Sơn** | `2A202601059` | **Survey & Backend**: Survey (`spec.md` §1-§2), Express REST API Services (`codebase/server.js`) | [`reflection/pham-thai-son.md`](reflection/pham-thai-son.md) |
+| **Nguyễn Trọng Đức** | `2A202601673` | **Database Architecture**: PostgreSQL Schema (`database/schema.sql`), Data Layer (`server.js`) | [`reflection/nguyen-trong-duc.md`](reflection/nguyen-trong-duc.md) |
 
 ## Bắt đầu từ đâu?
 

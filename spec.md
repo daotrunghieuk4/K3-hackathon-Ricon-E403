@@ -95,13 +95,15 @@ Loại: [x] Tính năng mới  [ ] Tối ưu tính năng có sẵn
 
 ## §8. Phân công & kế hoạch
 - **Phân công thành viên:**
-  - **Nguyễn Trung Hiếu** (Mã HV: **2A202601457** — **AI Tool & Prompts**): Phụ trách chính AI Spec (`spec.md`), Thiết kế Prompt Grounding & Verifier Engine (`codebase/ai-service.js`, `codebase/server.js`).
+  - **Nguyễn Trung Hiếu** (Mã HV: **2A202601457** — **AI Tool & Prompts**): Phụ trách chính AI Spec (`spec.md`), Thiết kế Prompt Grounding & Verifier Engine (`codebase/ai-service.js`).
   - **Đào Trung Hiếu** (Mã HV: **2A202601059** — **Test & Quality**): Phụ trách Golden Set & Evaluation (`eval/golden_set.json`, `eval/run_eval.ps1`), User Testing & Validation Log (`validation/user_feedback_log.md`).
   - **Nguyễn Văn An** (Mã HV: **2A202601817** — **Frontend & UI/UX**): Phụ trách Giao diện LMS (`codebase/index.html`), Client Logic (`codebase/app.js`), Styling (`codebase/styles.css`).
+  - **Phạm Thái Sơn** (Mã HV: **2A202601059** — **Survey & Backend**): Phụ trách Khảo sát nhu cầu người dùng (`spec.md` §1-§2), Lập trình RESTful API Services (`codebase/server.js`).
+  - **Nguyễn Trọng Đức** (Mã HV: **2A202601673** — **Database Architecture**): Phụ trách Thiết kế Cơ sở Dữ liệu PostgreSQL (`codebase/database/schema.sql`), Data Access Layer & Analytics (`codebase/server.js`).
 - **Willing users (≥3 người thật):**
-  1. Nguyễn Hoàng Nam (HV K3)
-  2. Phạm Minh Đức (HV K3)
-  3. Trần Bảo Ngọc (HV K3)
+  1. Hoàng Quốc Bảo (HV K3)
+  2. Vũ Khánh Linh (HV K3)
+  3. Trần Minh Hoàng (HV K4)
 
 ---
 
