@@ -6,16 +6,40 @@
 // API Configuration
 const API_BASE_URL = "http://localhost:5000/api";
 
+function readJsonStorage(key, fallback) {
+  try {
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function createClientSourceId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map(value => value.toString(16).padStart(2, "0"));
+  return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10).join("")}`;
+}
+
 // Application State
 const state = {
   currentFile: null,
   extractedText: "",
+  currentSourceId: "",
+  currentQuestionBankId: "",
   currentLessonTitle: "Bài 01: Nhập môn AI Product (JTBD)",
   activeQuiz: [],
   userAnswers: {},
   currentRole: "user",
   apiKey: localStorage.getItem("VLEARN_GEMINI_KEY") || "",
-  history: JSON.parse(localStorage.getItem("VLEARN_QUIZ_HISTORY") || "[]")
+  history: readJsonStorage("VLEARN_QUIZ_HISTORY", []),
+  recommendedMix: readJsonStorage("VLEARN_RECOMMENDED_MIX", null),
+  latestAnalysis: readJsonStorage("VLEARN_LATEST_ANALYSIS", null),
+  latestAnalysisMode: localStorage.getItem("VLEARN_ANALYSIS_MODE") || ""
 };
 
 // Default Knowledge Topics Registry for Analytics
@@ -37,15 +61,21 @@ document.addEventListener("DOMContentLoaded", () => {
     seedInitialHistory();
   }
   renderHistoryAndGapMap();
+  renderAdaptiveRecommendation(state.latestAnalysis, state.latestAnalysisMode);
 });
 
 function loadInitialData() {
   const savedText = sessionStorage.getItem("VLEARN_ACTIVE_TEXT");
   const savedTitle = sessionStorage.getItem("VLEARN_ACTIVE_TITLE");
+  const savedFilename = sessionStorage.getItem("VLEARN_ACTIVE_FILENAME");
+  const savedSourceId = sessionStorage.getItem("VLEARN_ACTIVE_SOURCE_ID");
+  const savedQuestionBankId = sessionStorage.getItem("VLEARN_ACTIVE_QUESTION_BANK_ID");
 
-  if (savedText && savedTitle) {
+  if (savedText && savedTitle && savedSourceId && savedQuestionBankId) {
     state.extractedText = savedText;
-    state.currentFile = { name: savedTitle + ".pdf" };
+    state.currentSourceId = savedSourceId;
+    state.currentQuestionBankId = savedQuestionBankId;
+    state.currentFile = { name: savedFilename || savedTitle + ".pdf" };
     updateLessonTitleDisplays(savedTitle);
     
     const dropzoneTitle = document.getElementById("dropzoneTitle");
@@ -53,13 +83,12 @@ function loadInitialData() {
     
     const statusBadge = document.getElementById("adminFileStatusBadge") || document.getElementById("fileStatusBadge");
     if (statusBadge) {
-      statusBadge.innerText = "Đã nạp file PDF";
+      statusBadge.innerText = "Đã có kho câu hỏi riêng";
       statusBadge.style.background = "#dcfce7";
       statusBadge.style.color = "#15803d";
     }
   } else {
     const sample = window.VLEARN_SAMPLE_DATA;
-    state.extractedText = sample.sampleContent;
     updateLessonTitleDisplays(sample.title);
   }
 
@@ -116,8 +145,15 @@ function saveHistoryToStorage() {
 function clearHistory() {
   if (confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử nộp bài và dữ liệu lỗ hổng kiến thức?")) {
     state.history = [];
+    state.recommendedMix = null;
+    state.latestAnalysis = null;
+    state.latestAnalysisMode = "";
     saveHistoryToStorage();
+    localStorage.removeItem("VLEARN_RECOMMENDED_MIX");
+    localStorage.removeItem("VLEARN_LATEST_ANALYSIS");
+    localStorage.removeItem("VLEARN_ANALYSIS_MODE");
     renderHistoryAndGapMap();
+    renderAdaptiveRecommendation(null);
   }
 }
 
@@ -171,19 +207,33 @@ async function processPdfFile(file) {
     alert("Vui lòng tải lên file định dạng .PDF!");
     return;
   }
+  if (file.size > 25 * 1024 * 1024) {
+    alert("File PDF vượt quá giới hạn 25MB.");
+    return;
+  }
 
   state.currentFile = file;
+  state.extractedText = "";
+  state.currentSourceId = createClientSourceId();
+  state.currentQuestionBankId = "";
+  state.activeQuiz = [];
+  sessionStorage.removeItem("VLEARN_ACTIVE_TEXT");
+  sessionStorage.removeItem("VLEARN_ACTIVE_TITLE");
+  sessionStorage.removeItem("VLEARN_ACTIVE_FILENAME");
+  sessionStorage.removeItem("VLEARN_ACTIVE_SOURCE_ID");
+  sessionStorage.removeItem("VLEARN_ACTIVE_QUESTION_BANK_ID");
+
   const dropzoneTitle = document.getElementById("dropzoneTitle");
   if (dropzoneTitle) dropzoneTitle.innerText = `📄 ${file.name}`;
   
   const dropzoneSubtitle = document.getElementById("dropzoneSubtitle");
-  if (dropzoneSubtitle) dropzoneSubtitle.innerText = `Kích thước: ${(file.size / (1024 * 1024)).toFixed(2)} MB - Đã sẵn sàng sinh Quiz`;
+  if (dropzoneSubtitle) dropzoneSubtitle.innerText = "Đang đọc PDF và tạo kho câu hỏi mới bằng AI...";
   
   const statusBadge = document.getElementById("adminFileStatusBadge") || document.getElementById("fileStatusBadge");
   if (statusBadge) {
-    statusBadge.innerText = "Đã nạp file PDF";
-    statusBadge.style.background = "#dcfce7";
-    statusBadge.style.color = "#15803d";
+    statusBadge.innerText = "AI đang tạo câu hỏi";
+    statusBadge.style.background = "#fef3c7";
+    statusBadge.style.color = "#92400e";
   }
 
   const adminActiveFileName = document.getElementById("adminActiveFileName");
@@ -199,34 +249,65 @@ async function processPdfFile(file) {
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     
     let fullText = "";
-    for (let pageNum = 1; pageNum <= Math.min(pdf.numPages, 10); pageNum++) {
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
       const page = await pdf.getPage(pageNum);
       const textContent = await page.getTextContent();
       const pageText = textContent.items.map(item => item.str).join(" ");
       fullText += ` [Trang ${pageNum}] ` + pageText;
     }
 
+    if (fullText.trim().length < 80) {
+      throw new Error("PDF không có đủ văn bản có thể trích xuất. Nếu đây là PDF scan, cần OCR trước khi tải lên.");
+    }
+
     state.extractedText = fullText;
+    const difficulty = document.getElementById("difficultySelect")?.value || "medium";
+    const count = Number.parseInt(document.getElementById("questionCountSelect")?.value, 10) || 4;
+    const difficultyMix = difficulty === "adaptive" ? state.recommendedMix : null;
+    const response = await fetch(`${API_BASE_URL}/question-banks/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sourceId: state.currentSourceId,
+        lessonTitle,
+        originalFilename: file.name,
+        extractedText: fullText,
+        count,
+        difficulty,
+        difficultyMix
+      })
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success || !data.questionBankId) {
+      throw new Error(data.error || "Không thể tạo question bank từ PDF mới.");
+    }
+
+    state.currentQuestionBankId = data.questionBankId;
     sessionStorage.setItem("VLEARN_ACTIVE_TEXT", fullText);
     sessionStorage.setItem("VLEARN_ACTIVE_TITLE", lessonTitle);
+    sessionStorage.setItem("VLEARN_ACTIVE_FILENAME", file.name);
+    sessionStorage.setItem("VLEARN_ACTIVE_SOURCE_ID", state.currentSourceId);
+    sessionStorage.setItem("VLEARN_ACTIVE_QUESTION_BANK_ID", state.currentQuestionBankId);
 
-    // Save document and extracted pages to Backend Database
-    try {
-      fetch(`${API_BASE_URL}/documents/save`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: lessonTitle,
-          originalFilename: file.name,
-          extractedText: fullText
-        })
-      });
-    } catch (apiErr) {
-      console.warn("Backend API /api/documents/save unavailable:", apiErr);
+    if (dropzoneSubtitle) {
+      dropzoneSubtitle.innerText = `Đã tạo ${data.questionCount} câu mới từ đúng PDF này · ${data.savedToDb ? "đã lưu PostgreSQL" : "đang lưu tạm trên server"}`;
+    }
+    if (statusBadge) {
+      statusBadge.innerText = "Kho câu hỏi mới đã sẵn sàng";
+      statusBadge.style.background = "#dcfce7";
+      statusBadge.style.color = "#15803d";
     }
   } catch (err) {
-    console.error("PDF Parsing Error:", err);
-    alert("Không thể giải mã PDF hoàn toàn. Hệ thống chuyển sang chế độ Mô phỏng dữ liệu thông minh.");
+    console.error("PDF Parsing/Question Bank Error:", err);
+    state.extractedText = "";
+    state.currentQuestionBankId = "";
+    if (dropzoneSubtitle) dropzoneSubtitle.innerText = err.message;
+    if (statusBadge) {
+      statusBadge.innerText = "Tạo kho câu hỏi thất bại";
+      statusBadge.style.background = "#fee2e2";
+      statusBadge.style.color = "#b91c1c";
+    }
+    alert(`Không thể dùng PDF này để tạo quiz: ${err.message}\nHệ thống không lấy câu hỏi mẫu hoặc câu hỏi cũ thay thế.`);
   }
 }
 
@@ -237,8 +318,16 @@ async function processPdfFile(file) {
 async function generateQuiz() {
   const difficulty = document.getElementById("difficultySelect").value;
   const count = parseInt(document.getElementById("questionCountSelect").value);
+  const difficultyMix = difficulty === "adaptive" ? state.recommendedMix : null;
 
-  const btn = event ? event.currentTarget : document.querySelector("button[onclick*='generateQuiz']");
+  if (!state.currentSourceId || !state.currentQuestionBankId || !state.extractedText) {
+    alert("Hãy tải PDF và chờ AI tạo xong kho câu hỏi mới trước khi tạo bài kiểm tra.");
+    return;
+  }
+
+  const btn = typeof event !== "undefined" && event?.currentTarget
+    ? event.currentTarget
+    : document.querySelector("button[onclick*='generateQuiz']");
   const originalHtml = btn ? btn.innerHTML : "";
   if (btn) {
     btn.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> Đang kết nối Backend Server & AI...`;
@@ -250,76 +339,60 @@ async function generateQuiz() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        sourceId: state.currentSourceId,
+        questionBankId: state.currentQuestionBankId,
         extractedText: state.extractedText,
+        originalFilename: state.currentFile?.name || `${state.currentLessonTitle}.pdf`,
         lessonTitle: state.currentLessonTitle,
         count: count,
         difficulty: difficulty,
-        apiKey: state.apiKey
+        difficultyMix: difficultyMix
       })
     });
 
-    if (response.ok) {
-      const data = await response.json();
-      if (data.quiz && data.quiz.length > 0) {
-        if (btn) {
-          btn.innerHTML = originalHtml;
-          btn.disabled = false;
-        }
-        renderQuiz(data.quiz.slice(0, count));
-        const quizSection = document.getElementById("quizSection");
-        if (quizSection) quizSection.scrollIntoView({ behavior: 'smooth' });
-        return;
-      }
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || "Backend không thể tạo quiz từ question bank hiện tại.");
     }
-  } catch (err) {
-    console.warn("Backend API /api/quiz/generate unavailable, fallback to local simulator:", err);
-  }
+    if (!Array.isArray(data.quiz) || data.quiz.length !== count) {
+      throw new Error(`Question bank trả ${Array.isArray(data.quiz) ? data.quiz.length : 0}/${count} câu.`);
+    }
 
-  // Fallback to local simulation if backend server is offline
-  setTimeout(() => {
+    state.currentQuestionBankId = data.questionBankId;
+    sessionStorage.setItem("VLEARN_ACTIVE_QUESTION_BANK_ID", data.questionBankId);
+    renderQuiz(data.quiz);
+    const quizSection = document.getElementById("quizSection");
+    if (quizSection) quizSection.scrollIntoView({ behavior: "smooth" });
+  } catch (err) {
+    console.error("Quiz generation failed:", err);
+    alert(`Không thể tạo quiz: ${err.message}\nKhông sử dụng câu hỏi cũ để thay thế.`);
+  } finally {
     if (btn) {
       btn.innerHTML = originalHtml;
       btn.disabled = false;
     }
-
-    let quiz = [];
-    if (state.currentFile) {
-      quiz = createDynamicQuizFromText(state.extractedText, count, difficulty);
-    } else {
-      quiz = [...window.VLEARN_SAMPLE_DATA.defaultQuiz];
-    }
-
-    renderQuiz(quiz.slice(0, count));
-    const quizSection = document.getElementById("quizSection");
-    if (quizSection) quizSection.scrollIntoView({ behavior: 'smooth' });
-  }, 500);
-}
-
-function createDynamicQuizFromText(text, count, difficulty) {
-  const topicMap = ["jtbd", "grounding", "automation", "eval"];
-  const generated = [];
-  
-  for (let i = 1; i <= count; i++) {
-    const topic = topicMap[(i - 1) % topicMap.length];
-    generated.push({
-      id: i,
-      type: "single",
-      topicTag: topic,
-      question: `[Câu ${i} - Dạng ${difficulty.toUpperCase()}] Dựa vào tài liệu PDF vừa tải lên, yếu tố nào sau đây quyết định tính chính xác của bài toán?`,
-      options: [
-        `A. Trích dẫn minh bạch nguồn dữ liệu bài giảng và kiểm soát cost-of-error`,
-        `B. Tự đoán đáp án khi không có tài liệu chứng minh`,
-        `C. Đưa ra câu trả lời không cần kiểm tra grounding`,
-        `D. Tự động thay đổi thang điểm đánh giá`
-      ],
-      correctAnswer: 0,
-      explanation: `Theo chuẩn VLearn AI Product, đáp án A đúng vì bắt buộc phải trích dẫn căn cứ và kiểm soát chi phí sai sót (cost-of-error).`
-    });
   }
-  return generated;
 }
 
 function renderQuiz(quizList) {
+  quizList = quizList.map((question, index) => {
+    const legacyExplanation = question.explanation || "";
+    const legacyCitationMatch = legacyExplanation.match(/\[(?:Trang|T)[^\]]+\]/i);
+    const legacyCitation = legacyCitationMatch ? legacyCitationMatch[0] : "";
+    const cleanLegacyExplanation = legacyCitation
+      ? legacyExplanation.replace(legacyCitation, "").trim()
+      : legacyExplanation;
+
+    return {
+      ...question,
+      id: question.id ?? index + 1,
+      difficulty: question.difficulty || "medium",
+      explanationCorrect: question.explanationCorrect || cleanLegacyExplanation,
+      explanationIncorrect: question.explanationIncorrect || "Lựa chọn này chưa bám đủ dữ kiện và khái niệm cốt lõi của bài học.",
+      optionExplanations: Array.isArray(question.optionExplanations) ? question.optionExplanations : [],
+      citation: question.citation || legacyCitation
+    };
+  });
   state.activeQuiz = quizList;
   state.userAnswers = {};
 
@@ -337,7 +410,7 @@ function renderQuiz(quizList) {
       return `
         <div class="question-card" id="qcard_${q.id}">
           <div class="question-title">
-            <span class="q-number">Câu ${idx + 1}</span>
+            <span class="q-number">Câu ${idx + 1} · ${formatDifficulty(q.difficulty)}</span>
             <span>${q.question}</span>
           </div>
           <div class="options-group">
@@ -355,7 +428,7 @@ function renderQuiz(quizList) {
       return `
         <div class="question-card" id="qcard_${q.id}">
           <div class="question-title">
-            <span class="q-number">Câu ${idx + 1} (Tự luận ngắn)</span>
+            <span class="q-number">Câu ${idx + 1} · ${formatDifficulty(q.difficulty)} · Tự luận ngắn</span>
             <span>${q.question}</span>
           </div>
           <div class="form-group" style="margin-top:0.75rem;">
@@ -404,7 +477,7 @@ function updateProgress(current, total) {
    3. QUIZ SUBMISSION, SCORING & HISTORY RECORDING
    ========================================================================== */
 
-function submitQuiz() {
+async function submitQuiz() {
   const total = state.activeQuiz.length;
   const answeredCount = Object.keys(state.userAnswers).length;
 
@@ -416,6 +489,7 @@ function submitQuiz() {
 
   let correctCount = 0;
   const missedTopics = [];
+  const previousHistory = [...state.history];
 
   state.activeQuiz.forEach((q) => {
     const userAns = state.userAnswers[q.id];
@@ -443,10 +517,7 @@ function submitQuiz() {
       });
 
       explainBox.className = `explanation-box show ${isCorrect ? 'correct-box' : 'incorrect-box'}`;
-      explainBox.innerHTML = `
-        <strong>${isCorrect ? '✓ Đáp án chính xác!' : '✗ Chưa chính xác.'}</strong><br>
-        <em>Giải thích chi tiết:</em> ${q.explanation}
-      `;
+      explainBox.innerHTML = renderQuestionExplanation(q, userAns, isCorrect);
     } else {
       const userText = (userAns || "").toLowerCase();
       isCorrect = q.keywords ? q.keywords.some(kw => userText.includes(kw)) : userText.length > 5;
@@ -457,11 +528,7 @@ function submitQuiz() {
       }
 
       explainBox.className = `explanation-box show ${isCorrect ? 'correct-box' : 'incorrect-box'}`;
-      explainBox.innerHTML = `
-        <strong>${isCorrect ? '✓ Đạt yêu cầu nội dung!' : 'ℹ️ Gợi ý đáp án chuẩn:'}</strong><br>
-        ${q.modelAnswer}<br>
-        <em>Giải thích:</em> ${q.explanation}
-      `;
+      explainBox.innerHTML = renderQuestionExplanation(q, userAns, isCorrect);
     }
   });
 
@@ -472,7 +539,9 @@ function submitQuiz() {
     id: `ATT-${1000 + state.history.length + 1}`,
     date: new Date().toLocaleString("vi-VN"),
     lessonTitle: state.currentLessonTitle,
-    difficulty: document.getElementById("difficultySelect").options[document.getElementById("difficultySelect").selectedIndex].text.split(" ")[0],
+    difficulty: document.getElementById("difficultySelect").value === "adaptive"
+      ? "Thích ứng"
+      : document.getElementById("difficultySelect").options[document.getElementById("difficultySelect").selectedIndex].text.split(" ")[0],
     correctCount: correctCount,
     totalCount: total,
     scorePct: scorePct,
@@ -498,6 +567,231 @@ function submitQuiz() {
 
   document.getElementById("quizActionButtons").style.display = "none";
   resultCard.scrollIntoView({ behavior: 'smooth' });
+
+  const adaptiveResultEl = document.getElementById("adaptiveAnalysisResult");
+  if (adaptiveResultEl) {
+    adaptiveResultEl.style.display = "block";
+    adaptiveResultEl.innerHTML = `<div class="adaptive-mix-title"><i class="ri-loader-4-line ri-spin"></i> AI đang phân tích lịch sử và điều chỉnh tỷ lệ độ khó...</div>`;
+  }
+
+  let analysis = buildLocalAdaptiveAnalysis([newAttempt, ...previousHistory], total);
+  let analysisMode = "Rule-based Fallback";
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/quiz/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        answers: state.userAnswers,
+        activeQuiz: state.activeQuiz,
+        lessonTitle: state.currentLessonTitle,
+        difficulty: newAttempt.difficulty,
+        history: previousHistory.slice(0, 9)
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.analysis && data.analysis.nextMix) {
+        analysis = data.analysis;
+        analysisMode = data.analysisMode || "AI Generated";
+      }
+    }
+  } catch (error) {
+    console.warn("Backend adaptive analysis unavailable, using local fallback:", error);
+  }
+
+  state.latestAnalysis = analysis;
+  state.latestAnalysisMode = analysisMode;
+  state.recommendedMix = analysis.nextMix;
+  localStorage.setItem("VLEARN_LATEST_ANALYSIS", JSON.stringify(analysis));
+  localStorage.setItem("VLEARN_ANALYSIS_MODE", analysisMode);
+  localStorage.setItem("VLEARN_RECOMMENDED_MIX", JSON.stringify(analysis.nextMix));
+
+  const difficultySelect = document.getElementById("difficultySelect");
+  if (difficultySelect) difficultySelect.value = "adaptive";
+  renderAdaptiveRecommendation(analysis, analysisMode);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function formatDifficulty(value) {
+  const labels = { easy: "Dễ", medium: "Trung bình", hard: "Khó" };
+  return labels[value] || "Trung bình";
+}
+
+function renderQuestionExplanation(question, userAnswer, isCorrect) {
+  const correctExplanation = question.explanationCorrect || question.explanation || "Đáp án này phù hợp nhất với nội dung bài học.";
+  const genericIncorrect = question.explanationIncorrect || "Lựa chọn này chưa phản ánh đầy đủ khái niệm được hỏi.";
+  const selectedExplanation = Array.isArray(question.optionExplanations)
+    ? question.optionExplanations[userAnswer]
+    : "";
+  const citation = question.citation || "";
+
+  if (question.type === "single") {
+    return `
+      <div class="explanation-section">
+        <h5>${isCorrect ? "✓ Vì sao đáp án của bạn đúng" : "✗ Vì sao lựa chọn của bạn chưa đúng"}</h5>
+        <p>${escapeHtml(isCorrect ? correctExplanation : (selectedExplanation || genericIncorrect))}</p>
+      </div>
+      ${isCorrect ? "" : `
+        <div class="explanation-section">
+          <h5>✓ Vì sao đáp án đúng phù hợp hơn</h5>
+          <p>${escapeHtml(correctExplanation)}</p>
+        </div>
+        <div class="explanation-section">
+          <h5>Điểm dễ nhầm</h5>
+          <p>${escapeHtml(genericIncorrect)}</p>
+        </div>
+      `}
+      ${citation ? `<div class="explanation-citation"><i class="ri-book-open-line"></i> Nguồn tham khảo: ${escapeHtml(citation)}</div>` : ""}
+    `;
+  }
+
+  return `
+    <div class="explanation-section">
+      <h5>${isCorrect ? "✓ Câu trả lời đã chạm đúng ý chính" : "✗ Phần còn thiếu hoặc chưa chính xác"}</h5>
+      <p>${escapeHtml(isCorrect ? correctExplanation : genericIncorrect)}</p>
+    </div>
+    <div class="explanation-section">
+      <h5>Đáp án tham khảo</h5>
+      <p>${escapeHtml(question.modelAnswer || "")}</p>
+    </div>
+    ${isCorrect ? "" : `
+      <div class="explanation-section">
+        <h5>Cách lập luận đầy đủ</h5>
+        <p>${escapeHtml(correctExplanation)}</p>
+      </div>
+    `}
+    ${citation ? `<div class="explanation-citation"><i class="ri-book-open-line"></i> Nguồn tham khảo: ${escapeHtml(citation)}</div>` : ""}
+  `;
+}
+
+function allocateAdaptiveMix(weights, total) {
+  const levels = ["easy", "medium", "hard"];
+  const weightTotal = levels.reduce((sum, level) => sum + (weights[level] || 0), 0) || 1;
+  const raw = levels.map(level => ((weights[level] || 0) / weightTotal) * total);
+  const counts = raw.map(Math.floor);
+  let remaining = total - counts.reduce((sum, value) => sum + value, 0);
+  raw
+    .map((value, index) => ({ index, remainder: value - counts[index] }))
+    .sort((a, b) => b.remainder - a.remainder)
+    .forEach(item => {
+      if (remaining > 0) {
+        counts[item.index] += 1;
+        remaining -= 1;
+      }
+    });
+  return { easy: counts[0], medium: counts[1], hard: counts[2] };
+}
+
+function buildLocalAdaptiveAnalysis(history, totalQuestions) {
+  const recent = history.slice(0, 10);
+  const latestScore = recent[0]?.scorePct || 0;
+  const previous = recent.slice(1);
+  const previousAverage = previous.length
+    ? previous.reduce((sum, attempt) => sum + (attempt.scorePct || 0), 0) / previous.length
+    : latestScore;
+
+  let trend = "stable";
+  if (recent.length < 2) trend = "insufficient_data";
+  else if (latestScore >= previousAverage + 8) trend = "improving";
+  else if (latestScore <= previousAverage - 8) trend = "declining";
+
+  const weights = latestScore >= 80
+    ? { easy: 20, medium: 30, hard: 50 }
+    : latestScore < 50
+      ? { easy: 60, medium: 30, hard: 10 }
+      : { easy: 30, medium: 50, hard: 20 };
+
+  const topicCounts = {};
+  recent.forEach(attempt => {
+    (attempt.missedTopics || []).forEach(topic => {
+      topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+    });
+  });
+
+  return {
+    weakTopics: Object.entries(topicCounts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([topic]) => topic),
+    summary: latestScore >= 80
+      ? "Bạn đang nắm khá vững nội dung. Lượt tiếp theo có thể tăng câu khó để kiểm tra khả năng vận dụng, đồng thời giữ một phần câu dễ và trung bình để bảo đảm kiến thức nền ổn định."
+      : latestScore < 50
+        ? "Kiến thức nền ở lượt gần nhất chưa ổn định. Lượt tiếp theo nên tăng câu dễ để củng cố khái niệm, sau đó mới nâng dần độ khó."
+        : "Kết quả đang ở mức trung gian. Lượt tiếp theo nên ưu tiên câu trung bình, kèm câu dễ để củng cố và một số câu khó để luyện vận dụng.",
+    performanceTrend: trend,
+    reasoning: `Điểm gần nhất ${latestScore}%; trung bình các lượt trước ${Math.round(previousAverage)}%.`,
+    nextMix: allocateAdaptiveMix(weights, totalQuestions)
+  };
+}
+
+function renderAdaptiveRecommendation(analysis, analysisMode = "") {
+  const compact = document.getElementById("adaptiveMixCompact");
+  const result = document.getElementById("adaptiveAnalysisResult");
+  const historyCard = document.getElementById("adaptiveHistoryCard");
+  const historyContent = document.getElementById("adaptiveHistoryContent");
+  const modeBadge = document.getElementById("adaptiveAnalysisMode");
+
+  if (!analysis || !analysis.nextMix) {
+    if (compact) {
+      compact.innerHTML = `
+        <div class="adaptive-mix-title"><i class="ri-brain-line"></i> Tỷ lệ thích ứng chưa có dữ liệu</div>
+        <p>Hoàn thành một bài quiz để AI đề xuất tỷ lệ câu dễ, trung bình và khó cho lượt tiếp theo.</p>
+      `;
+    }
+    if (result) result.style.display = "none";
+    if (historyCard) historyCard.style.display = "none";
+    return;
+  }
+
+  const mix = analysis.nextMix;
+  const total = (mix.easy || 0) + (mix.medium || 0) + (mix.hard || 0);
+  const trendLabels = {
+    improving: "Đang tiến bộ",
+    declining: "Cần củng cố",
+    stable: "Ổn định",
+    insufficient_data: "Chưa đủ dữ liệu"
+  };
+  const weakTopicText = (analysis.weakTopics || []).length
+    ? (analysis.weakTopics || []).map(topic => escapeHtml(topic)).join(", ")
+    : "Chưa phát hiện chủ đề yếu nổi bật";
+
+  const mixHtml = `
+    <div class="adaptive-mix-grid">
+      <div class="adaptive-mix-item"><span>Dễ</span><strong>${mix.easy || 0}/${total}</strong></div>
+      <div class="adaptive-mix-item"><span>Trung bình</span><strong>${mix.medium || 0}/${total}</strong></div>
+      <div class="adaptive-mix-item"><span>Khó</span><strong>${mix.hard || 0}/${total}</strong></div>
+    </div>
+  `;
+  const contentHtml = `
+    <div class="adaptive-mix-title"><i class="ri-brain-line"></i> ${escapeHtml(trendLabels[analysis.performanceTrend] || "Phân tích thích ứng")}</div>
+    <p class="adaptive-reasoning">${escapeHtml(analysis.summary || "")}</p>
+    ${mixHtml}
+    <p class="adaptive-reasoning"><strong>Chủ đề cần chú ý:</strong> ${weakTopicText}</p>
+    <p class="adaptive-reasoning"><strong>Lý do điều chỉnh:</strong> ${escapeHtml(analysis.reasoning || "")}</p>
+  `;
+
+  if (compact) {
+    compact.innerHTML = `
+      <div class="adaptive-mix-title"><i class="ri-brain-line"></i> AI đề xuất bài tiếp theo</div>
+      <p>Dễ ${mix.easy || 0} · Trung bình ${mix.medium || 0} · Khó ${mix.hard || 0}. Chọn “Thích ứng theo lịch sử” để áp dụng.</p>
+    `;
+  }
+  if (result) {
+    result.style.display = "block";
+    result.innerHTML = contentHtml;
+  }
+  if (historyCard && historyContent) {
+    historyCard.style.display = "block";
+    historyContent.innerHTML = contentHtml;
+  }
+  if (modeBadge) modeBadge.innerText = analysisMode || "Adaptive";
 }
 
 function resetQuiz() {
@@ -919,8 +1213,7 @@ async function sendChatMessage() {
       body: JSON.stringify({
         query: text,
         lessonText: state.extractedText,
-        lessonTitle: state.currentLessonTitle,
-        apiKey: state.apiKey
+        lessonTitle: state.currentLessonTitle
       })
     });
 
