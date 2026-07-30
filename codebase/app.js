@@ -10,6 +10,7 @@ const state = {
   currentLessonTitle: "Bài 01: Nhập môn AI Product (JTBD)",
   activeQuiz: [],
   userAnswers: {},
+  currentRole: "user",
   apiKey: localStorage.getItem("VLEARN_GEMINI_KEY") || "",
   history: JSON.parse(localStorage.getItem("VLEARN_QUIZ_HISTORY") || "[]")
 };
@@ -38,9 +39,35 @@ document.addEventListener("DOMContentLoaded", () => {
 function loadInitialData() {
   const sample = window.VLEARN_SAMPLE_DATA;
   state.extractedText = sample.sampleContent;
-  state.currentLessonTitle = sample.title;
-  document.getElementById("activeLessonBadge").innerHTML = `<i class="ri-book-read-line"></i> ${sample.title}`;
-  renderQuiz(sample.defaultQuiz);
+  updateLessonTitleDisplays(sample.title);
+  // Quiz is NOT rendered automatically on load; only appears when user clicks "Tạo Bài Kiểm Tra Ngay"
+  const quizSection = document.getElementById("quizSection");
+  if (quizSection) quizSection.style.display = "none";
+}
+
+function updateLessonTitleDisplays(title) {
+  state.currentLessonTitle = title;
+  const badge = document.getElementById("activeLessonBadge");
+  if (badge) badge.innerHTML = `<i class="ri-book-read-line"></i> ${title}`;
+
+  const studentDisplay = document.getElementById("studentLessonTitleDisplay");
+  if (studentDisplay) studentDisplay.innerText = title;
+
+  const adminDisplay = document.getElementById("adminActiveLessonTitleDisplay");
+  if (adminDisplay) adminDisplay.innerText = title;
+
+  const adminInput = document.getElementById("adminLessonTitleInput");
+  if (adminInput && adminInput !== document.activeElement) {
+    adminInput.value = title;
+  }
+}
+
+function updateAdminLesson() {
+  const input = document.getElementById("adminLessonTitleInput");
+  const newTitle = input ? input.value.trim() : "";
+  const finalTitle = newTitle || "Bài 01: Nhập môn AI Product & Xác định Bài toán (JTBD)";
+  updateLessonTitleDisplays(finalTitle);
+  alert(`✓ Đã cập nhật bài giảng: "${finalTitle}" cho toàn bộ học viên!`);
 }
 
 function seedInitialHistory() {
@@ -123,15 +150,26 @@ async function processPdfFile(file) {
   }
 
   state.currentFile = file;
-  document.getElementById("dropzoneTitle").innerText = `📄 ${file.name}`;
-  document.getElementById("dropzoneSubtitle").innerText = `Kích thước: ${(file.size / (1024 * 1024)).toFixed(2)} MB - Đã sẵn sàng sinh Quiz`;
-  document.getElementById("fileStatusBadge").innerText = "Đã nạp file PDF";
-  document.getElementById("fileStatusBadge").style.background = "#dcfce7";
-  document.getElementById("fileStatusBadge").style.color = "#15803d";
+  const dropzoneTitle = document.getElementById("dropzoneTitle");
+  if (dropzoneTitle) dropzoneTitle.innerText = `📄 ${file.name}`;
+  
+  const dropzoneSubtitle = document.getElementById("dropzoneSubtitle");
+  if (dropzoneSubtitle) dropzoneSubtitle.innerText = `Kích thước: ${(file.size / (1024 * 1024)).toFixed(2)} MB - Đã sẵn sàng sinh Quiz`;
+  
+  const statusBadge = document.getElementById("adminFileStatusBadge") || document.getElementById("fileStatusBadge");
+  if (statusBadge) {
+    statusBadge.innerText = "Đã nạp file PDF";
+    statusBadge.style.background = "#dcfce7";
+    statusBadge.style.color = "#15803d";
+  }
+
+  const adminActiveFileName = document.getElementById("adminActiveFileName");
+  if (adminActiveFileName) adminActiveFileName.innerText = `📄 ${file.name} (Đã nạp bài giảng thành công)`;
   
   const lessonTitle = file.name.replace(".pdf", "");
-  state.currentLessonTitle = lessonTitle;
-  document.getElementById("activeLessonBadge").innerHTML = `<i class="ri-file-pdf-fill"></i> ${lessonTitle}`;
+  const input = document.getElementById("adminLessonTitleInput");
+  if (input) input.value = lessonTitle;
+  updateLessonTitleDisplays(lessonTitle);
 
   try {
     const arrayBuffer = await file.arrayBuffer();
@@ -208,6 +246,9 @@ function createDynamicQuizFromText(text, count, difficulty) {
 function renderQuiz(quizList) {
   state.activeQuiz = quizList;
   state.userAnswers = {};
+
+  const quizSection = document.getElementById("quizSection");
+  if (quizSection) quizSection.style.display = "block";
 
   const container = document.getElementById("questionsContainer");
   document.getElementById("resultCard").style.display = "none";
@@ -499,6 +540,56 @@ function renderHistoryAndGapMap() {
    5. NAVIGATION & CHATBOT HANDLERS
    ========================================================================== */
 
+/* ==========================================================================
+   5. DUAL-ROLE SWITCHER & ADMIN WORKSPACE HANDLERS
+   ========================================================================== */
+
+function switchRole(role) {
+  state.currentRole = role;
+
+  const roleBtnUser = document.getElementById("roleBtnUser");
+  const roleBtnAdmin = document.getElementById("roleBtnAdmin");
+  const navGroupUser = document.getElementById("navGroupUser");
+  const navGroupAdmin = document.getElementById("navGroupAdmin");
+  const roleBadge = document.getElementById("roleBadge");
+  const activeUserName = document.getElementById("activeUserName");
+  const activeUserRole = document.getElementById("activeUserRole");
+
+  if (role === "admin") {
+    roleBtnUser.classList.remove("active");
+    roleBtnAdmin.classList.add("active");
+    navGroupUser.style.display = "none";
+    navGroupAdmin.style.display = "block";
+
+    if (roleBadge) {
+      roleBadge.innerText = "QUẢN TRỊ VIÊN (ADMIN)";
+      roleBadge.style.background = "rgba(199, 33, 39, 0.25)";
+      roleBadge.style.color = "#fca5a5";
+      roleBadge.style.borderColor = "rgba(199, 33, 39, 0.5)";
+    }
+    if (activeUserName) activeUserName.innerText = "Admin";
+    if (activeUserRole) activeUserRole.innerText = "Quản trị viên hệ thống";
+
+    switchNav("admin-dashboard");
+  } else {
+    roleBtnAdmin.classList.remove("active");
+    roleBtnUser.classList.add("active");
+    navGroupAdmin.style.display = "none";
+    navGroupUser.style.display = "block";
+
+    if (roleBadge) {
+      roleBadge.innerText = "HỌC VIÊN (USER)";
+      roleBadge.style.background = "rgba(19, 77, 139, 0.35)";
+      roleBadge.style.color = "#93c5fd";
+      roleBadge.style.borderColor = "rgba(19, 77, 139, 0.5)";
+    }
+    if (activeUserName) activeUserName.innerText = "Học viên";
+    if (activeUserRole) activeUserRole.innerText = "Học viên VLearn";
+
+    switchNav("generator");
+  }
+}
+
 function switchNav(viewName) {
   document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
   document.querySelectorAll(".tab-view").forEach(view => view.style.display = "none");
@@ -507,17 +598,181 @@ function switchNav(viewName) {
   const subtitleEl = document.getElementById("currentViewSubtitle");
 
   if (viewName === "generator") {
-    document.getElementById("nav-generator").classList.add("active");
+    document.getElementById("nav-generator")?.classList.add("active");
     document.getElementById("view-generator").style.display = "flex";
     titleEl.innerText = "Hệ Thống Tạo Bài Kiểm Tra AI Cho VLearn";
     subtitleEl.innerText = "Tự động đọc tài liệu PDF, sinh quiz kiểm tra Active Recall & theo dõi lịch sử hổng kiến thức";
   } else if (viewName === "analytics") {
-    document.getElementById("nav-analytics").classList.add("active");
+    document.getElementById("nav-analytics")?.classList.add("active");
     document.getElementById("view-analytics").style.display = "flex";
     titleEl.innerText = "Bản Đồ Lỗ Hổng Kiến Thức & Hướng Dẫn Ôn Tập";
     subtitleEl.innerText = "Theo dõi lịch sử làm bài và nhận gợi ý lộ trình cải thiện từ AI Tutor";
     renderHistoryAndGapMap();
+  } else if (viewName === "admin-lessons") {
+    document.getElementById("nav-admin-lessons")?.classList.add("active");
+    document.getElementById("view-admin-lessons").style.display = "flex";
+    titleEl.innerText = "Tải Lên PDF & Cấu Hình Bài Giảng (Dành Cho Admin)";
+    subtitleEl.innerText = "Tải lên tài liệu PDF bài giảng mới và đặt tên bài học để đồng bộ cho toàn bộ học viên";
+  } else if (viewName === "admin-dashboard") {
+    document.getElementById("nav-admin-dashboard")?.classList.add("active");
+    document.getElementById("view-admin-dashboard").style.display = "flex";
+    titleEl.innerText = "Dashboard Quản Trị Lớp Học & Tỷ Lệ Lỗ Hổng Kiến Thức";
+    subtitleEl.innerText = "Tổng quan chỉ số làm bài, thống kê tỷ lệ hổng kiến thức toàn lớp và thao tác gửi nhắc nhở ôn tập";
+    renderAdminDashboard();
+  } else if (viewName === "admin-students") {
+    document.getElementById("nav-admin-students")?.classList.add("active");
+    document.getElementById("view-admin-students").style.display = "flex";
+    titleEl.innerText = "Quản Lý Học Viên & Cảnh Báo Lỗ Hổng Kiến Thức";
+    subtitleEl.innerText = "Theo dõi danh sách học viên rủi ro, phân tích điểm số và can thiệp kịp thời";
+    renderAdminStudents();
+  } else if (viewName === "admin-config") {
+    document.getElementById("nav-admin-config")?.classList.add("active");
+    document.getElementById("view-admin-config").style.display = "flex";
+    titleEl.innerText = "Cấu Hình AI System Prompt & Grounding Guardrails";
+    subtitleEl.innerText = "Thiết lập quy tắc trích dẫn [Trang N], ngưỡng chống bịa nguồn và mức độ Automation cho lớp học";
+    updateGuardrailPreview();
   }
+}
+
+/* ==========================================================================
+   6. ADMIN DASHBOARD & STUDENT ROSTER LOGIC
+   ========================================================================== */
+
+function renderAdminDashboard() {
+  const sample = window.VLEARN_SAMPLE_DATA;
+  if (!sample || !sample.adminMetrics) return;
+
+  const metrics = sample.adminMetrics;
+  
+  document.getElementById("adminTotalStudents").innerText = metrics.totalStudents.toLocaleString();
+  document.getElementById("adminTotalQuizzes").innerText = metrics.totalQuizzesGenerated.toLocaleString();
+  document.getElementById("adminClassAvg").innerText = `${metrics.classAverageScore}%`;
+  document.getElementById("adminAtRiskCount").innerText = `${metrics.atRiskStudentsCount} HV`;
+
+  const gapContainer = document.getElementById("adminClassGapContainer");
+  if (!gapContainer) return;
+
+  gapContainer.innerHTML = metrics.topicGapDistribution.map(t => `
+    <div style="display:flex; flex-direction:column; gap:0.35rem;">
+      <div style="display:flex; justify-content:space-between; font-size:0.85rem; font-weight:600;">
+        <span>${t.name}</span>
+        <span style="color:${t.gapPct > 25 ? 'var(--danger)' : 'var(--success)'};">${t.gapPct}% học viên yếu (${t.count} HV)</span>
+      </div>
+      <div class="gap-progress-bg" style="height:10px;">
+        <div class="gap-progress-fill" style="width: ${t.gapPct}%; background: ${t.gapPct > 25 ? 'var(--danger)' : 'var(--warning)'};"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderAdminStudents(studentsToRender = null) {
+  const tableBody = document.getElementById("adminStudentsTableBody");
+  if (!tableBody) return;
+
+  const students = studentsToRender || window.VLEARN_SAMPLE_DATA.studentsList || [];
+
+  if (students.length === 0) {
+    tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:2rem;">Không tìm thấy học viên nào phù hợp với bộ lọc.</td></tr>`;
+    return;
+  }
+
+  tableBody.innerHTML = students.map(s => {
+    let badgeClass = "badge-safe";
+    let badgeText = "✓ An toàn";
+    if (s.riskStatus === "danger") {
+      badgeClass = "badge-danger";
+      badgeText = "🚨 Cảnh báo nặng";
+    } else if (s.riskStatus === "warning") {
+      badgeClass = "badge-warning";
+      badgeText = "⚠️ Cần lưu ý";
+    }
+
+    return `
+      <tr>
+        <td><strong>#${s.id}</strong></td>
+        <td><strong>${s.name}</strong></td>
+        <td><span class="pill" style="background:#f1f5f9;">${s.class}</span></td>
+        <td>${s.lastActive}</td>
+        <td>${s.attempts} lần</td>
+        <td><strong style="color: ${s.avgScore >= 75 ? 'var(--success)' : 'var(--danger)'};">${s.avgScore}%</strong></td>
+        <td><span style="font-size:0.82rem; color:var(--text-muted);">${s.riskTopic}</span></td>
+        <td><span class="${badgeClass}">${badgeText}</span></td>
+        <td style="text-align:right;">
+          <button class="btn btn-secondary" style="font-size:0.75rem; padding:0.3rem 0.65rem;" onclick="sendRemediationToStudent('${s.id}', '${s.name}')">
+            <i class="ri-send-plane-line"></i> Gửi Bài Ôn
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function filterAdminStudents() {
+  const query = (document.getElementById("adminStudentSearch")?.value || "").toLowerCase();
+  const filterStatus = document.getElementById("adminRiskFilter")?.value || "all";
+
+  let filtered = window.VLEARN_SAMPLE_DATA.studentsList || [];
+
+  if (query) {
+    filtered = filtered.filter(s => s.name.toLowerCase().includes(query) || s.id.toLowerCase().includes(query));
+  }
+
+  if (filterStatus !== "all") {
+    filtered = filtered.filter(s => s.riskStatus === filterStatus);
+  }
+
+  renderAdminStudents(filtered);
+}
+
+function resetStudentFilter() {
+  if (document.getElementById("adminStudentSearch")) document.getElementById("adminStudentSearch").value = "";
+  if (document.getElementById("adminRiskFilter")) document.getElementById("adminRiskFilter").value = "all";
+  renderAdminStudents();
+}
+
+function sendRemediationToStudent(studentId, studentName) {
+  alert(`Đã tự động gửi bài ôn tập cá nhân hóa & thông báo nhắc nhở qua AI Tutor cho học viên ${studentName} (${studentId})!`);
+}
+
+function triggerClassRemediationNotice() {
+  alert("Hệ thống vừa gửi thông báo & lộ trình ôn tập AI tự động tới 146 học viên có tỷ lệ hổng kiến thức trên 30%!");
+}
+
+function exportClassReport() {
+  alert("Đã xuất thành công file báo cáo CSV 'VLearn_Class_K3_ActiveRecall_Report.csv' để đính kèm hồ sơ Hackathon!");
+}
+
+/* ==========================================================================
+   7. ADMIN GUARDRAILS & PROMPT CONFIG HANDLERS
+   ========================================================================== */
+
+function updateGuardrailPreview() {
+  const strictGrounding = document.getElementById("guardrailStrictGrounding")?.checked ?? true;
+  const refuseOutOfScope = document.getElementById("guardrailRefuseOutOfScope")?.checked ?? true;
+  const automationLevel = document.getElementById("guardrailAutomationLevel")?.value || "augment";
+  const hallucinationVal = document.getElementById("guardrailHallucination")?.value || "85";
+  const tempVal = document.getElementById("guardrailTemp")?.value || "20";
+
+  const configObj = {
+    strictGrounding: strictGrounding,
+    requirePageCitation: true,
+    refuseOutOfScope: refuseOutOfScope,
+    automationLevel: automationLevel,
+    temperature: parseFloat((tempVal / 100).toFixed(2)),
+    hallucinationGuardFilterPct: parseInt(hallucinationVal),
+    groundingPattern: "[Txx-NNN]",
+    systemPrompt: `You are VLearn Active Recall Quiz Generator. Always generate questions grounded STRICTLY in the provided PDF material. Every correct answer explanation MUST cite exact page numbers [Trang N] or sections.`
+  };
+
+  const previewEl = document.getElementById("jsonGuardrailPreview");
+  if (previewEl) {
+    previewEl.innerText = JSON.stringify(configObj, null, 2);
+  }
+}
+
+function saveGuardrailSettings() {
+  updateGuardrailPreview();
+  alert("✓ Đã lưu cấu hình AI System Prompt & Guardrails cho toàn hệ thống VLearn!");
 }
 
 function toggleChatWindow() {
@@ -584,5 +839,6 @@ function saveApiKey() {
   state.apiKey = key;
   localStorage.setItem("VLEARN_GEMINI_KEY", key);
   closeApiModal();
-  alert(key ? "Đã lưu Gemini API Key thành công!" : "Đã hủy API Key (chuyển sang chế độ Smart Offline Generator).");
+  alert(key ? "Đã lưu API Key thành công!" : "Đã hủy API Key (chuyển sang chế độ Smart Offline Generator).");
 }
+

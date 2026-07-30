@@ -30,45 +30,92 @@
     <aside class="sidebar">
       <div>
         <div class="brand-header">
-          <div class="brand-icon">V</div>
-          <div class="brand-text">
-            <h2>VLearn AI</h2>
-            <span class="brand-badge">PROTOTYPE HƯỚNG A</span>
+          <div style="display:flex; align-items:center; gap:0.75rem;">
+            <img src='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 613 613"><polygon fill="%23c72127" points="126,115 213.5,202.5 126,290"/><polygon fill="%23134d8b" points="486,113 486,296 306,476 133.5,303.5 225,212 306,293 387,212"/></svg>' alt="VLearn Logo" class="brand-logo-img">
+            <div class="brand-text">
+              <h2><span class="brand-v">V</span><span class="brand-learn">Learn</span>&nbsp;<span class="brand-a">A</span><span class="brand-i">I</span></h2>
+            </div>
           </div>
+          <span class="brand-badge" id="roleBadge">HỌC VIÊN (USER)</span>
         </div>
 
-        <ul class="nav-menu">
-          <li class="nav-item active" id="nav-generator" onclick="switchNav('generator')">
-            <i class="ri-quiz-line"></i>
-            <span>Tạo Quiz & Làm Bài</span>
-          </li>
-          <li class="nav-item" id="nav-analytics" onclick="switchNav('analytics')">
-            <i class="ri-bar-chart-box-line"></i>
-            <span>Bản Đồ Lỗ Hổng & Lịch Sử</span>
-          </li>
-          <li class="nav-item" onclick="openApiModal()">
-            <i class="ri-key-2-line"></i>
-            <span>Cấu Hình API Key</span>
-          </li>
-        </ul>
+        <!-- User Role Navigation -->
+        <div class="nav-section" id="navGroupUser">
+          <div class="nav-section-title">CHỨC NĂNG HỌC VIÊN</div>
+          <ul class="nav-menu">
+            <li class="nav-item active" id="nav-generator" onclick="switchNav('generator')">
+              <i class="ri-quiz-line"></i>
+              <span>Tạo Quiz & Làm Bài</span>
+            </li>
+            <li class="nav-item" id="nav-analytics" onclick="switchNav('analytics')">
+              <i class="ri-bar-chart-box-line"></i>
+              <span>Lỗ Hổng Cá Nhân & Lịch Sử</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Admin Role Navigation -->
+        <div class="nav-section" id="navGroupAdmin" style="display: none;">
+          <div class="nav-section-title">QUẢN TRỊ & GIẢNG VIÊN</div>
+          <ul class="nav-menu">
+            <li class="nav-item" id="nav-admin-lessons" onclick="switchNav('admin-lessons')">
+              <i class="ri-file-pdf-fill"></i>
+              <span>Tải Lên PDF & Bài Giảng</span>
+            </li>
+            <li class="nav-item" id="nav-admin-dashboard" onclick="switchNav('admin-dashboard')">
+              <i class="ri-dashboard-3-line"></i>
+              <span>Dashboard Lớp Học</span>
+            </li>
+            <li class="nav-item" id="nav-admin-students" onclick="switchNav('admin-students')">
+              <i class="ri-group-line"></i>
+              <span>Quản Lý Học Viên & Lỗ Hổng</span>
+            </li>
+            <li class="nav-item" id="nav-admin-config" onclick="switchNav('admin-config')">
+              <i class="ri-settings-5-line"></i>
+              <span>Prompts & Guardrails AI</span>
+            </li>
+            <li class="nav-item" id="nav-admin-apikey" onclick="openApiModal()">
+              <i class="ri-key-2-line"></i>
+              <span>Cấu Hình API Key</span>
+            </li>
+          </ul>
+        </div>
       </div>
 
       <div class="sidebar-footer">
-        <div class="course-tag">BATCH 03 - K3 HACKATHON</div>
-        <div class="course-name">AI Product Masterclass - VLearn LMS</div>
+        <div class="user-profile-badge" id="userProfileBadge">
+          <div class="avatar-sm"><i class="ri-user-fill"></i></div>
+          <div class="user-info">
+            <strong id="activeUserName">Học viên</strong>
+            <span id="activeUserRole">Học viên VLearn</span>
+          </div>
+        </div>
+        <div class="course-tag" style="margin-top: 0.75rem;">BATCH 03 - K3 HACKATHON</div>
+        <div class="course-name">AI Product Masterclass - VLearn</div>
       </div>
     </aside>
 
     <!-- Main Content Area -->
     <main class="main-wrapper">
       
-      <!-- Top Navbar (Đã bỏ 2 nút Nạp Bài Mẫu & Tải PDF ở Header) -->
+      <!-- Top Navbar with Dual Role Switcher -->
       <header class="top-header">
         <div class="header-title">
           <h1 id="currentViewTitle">Hệ Thống Tạo Bài Kiểm Tra AI Cho VLearn</h1>
           <p class="header-subtitle" id="currentViewSubtitle">Tự động đọc tài liệu PDF, sinh quiz kiểm tra Active Recall & theo dõi lịch sử hổng kiến thức</p>
         </div>
-        <div class="header-actions">
+        
+        <div class="header-actions" style="display: flex; align-items: center; gap: 1rem;">
+          <!-- Dual Role Switcher Selector -->
+          <div class="role-switch-container">
+            <button class="role-switch-btn active" id="roleBtnUser" onclick="switchRole('user')">
+              <i class="ri-user-3-line"></i> Học viên
+            </button>
+            <button class="role-switch-btn" id="roleBtnAdmin" onclick="switchRole('admin')">
+              <i class="ri-shield-user-line"></i> Quản trị / Giảng viên
+            </button>
+          </div>
+
           <span class="pill" style="background:var(--primary-light); color:var(--primary); font-weight:600;" id="activeLessonBadge">
             <i class="ri-book-read-line"></i> Bài 01: Nhập môn AI Product (JTBD)
           </span>
@@ -78,14 +125,14 @@
       <!-- Content Container -->
       <div class="content-container">
 
-        <!-- VIEW 1: TAB TẠO QUIZ & LÀM BÀI -->
+        <!-- VIEW 1: TAB TẠO QUIZ & LÀM BÀI (HỌC VIÊN) -->
         <div id="view-generator" class="tab-view active">
           
           <!-- Welcome Hero Banner -->
           <section class="welcome-banner">
             <div class="banner-content">
               <h2>Active Recall Quiz & Phân Tích Lỗ Hổng Kiến Thức</h2>
-              <p>Tải lên PDF bài giảng hoặc sử dụng dữ liệu bài học sẵn có để tự động sinh bộ bài kiểm tra trắc nghiệm / tự luận. Kết quả làm bài sẽ được lưu lịch sử và phân tích lỗ hổng kiến thức để hướng dẫn ôn tập.</p>
+              <p>Hệ thống tự động sử dụng dữ liệu bài giảng do Giảng viên cập nhật để sinh bài kiểm tra trắc nghiệm / tự luận. Kết quả làm bài sẽ được lưu lịch sử và phân tích lỗ hổng kiến thức để hướng dẫn ôn tập.</p>
               <div class="banner-pills">
                 <span class="pill"><i class="ri-check-line"></i> Trích dẫn trang [Txx-NNN]</span>
                 <span class="pill"><i class="ri-history-line"></i> Tự động Lưu Lịch Sử Kết Quả</span>
@@ -94,25 +141,26 @@
             </div>
           </section>
 
-          <!-- Grid 2-Columns: Upload PDF Dropzone & Quiz Config -->
+          <!-- Grid 2-Columns: Student Active Lesson Card & Quiz Config -->
           <div class="grid-2col" style="margin-top: 1.5rem;">
             
-            <!-- Dropzone Card -->
+            <!-- Student Active Lesson Card (Dành riêng cho Học viên) -->
             <div class="card">
               <div class="card-header">
                 <div class="card-title">
-                  <i class="ri-file-pdf-fill"></i> Tải Lên File PDF Lý Thuyết
+                  <i class="ri-book-open-fill" style="color:var(--primary)"></i> Bài Lý Thuyết Giảng Viên Đã Giao
                 </div>
-                <span class="pill" style="background:#f1f5f9; color:#475569;" id="fileStatusBadge">Đã sẵn sàng PDF bài mẫu</span>
+                <span class="pill" style="background:#dcfce7; color:#15803d; font-weight:700;" id="fileStatusBadge">✓ Giảng viên đã giao</span>
               </div>
               
-              <div class="dropzone" id="pdfDropzone" onclick="triggerFileUpload()">
-                <div class="dropzone-icon">
-                  <i class="ri-upload-cloud-2-line"></i>
-                </div>
-                <h4 id="dropzoneTitle">Nhấp vào đây hoặc kéo thả file PDF bài lý thuyết vào</h4>
-                <p id="dropzoneSubtitle">Hỗ trợ PDF slide bài giảng, transcript (Tối đa 25MB)</p>
-                <input type="file" id="pdfFileInput" class="file-input" accept=".pdf" onchange="handleFileSelect(event)">
+              <div style="padding: 0.5rem 0;">
+                <span style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Tên bài giảng học phần:</span>
+                <h3 id="studentLessonTitleDisplay" style="font-size:1.1rem; font-weight:700; color:var(--text-main); margin: 0.35rem 0 0.75rem 0; line-height:1.4;">
+                  Bài 01: Nhập môn AI Product & Xác định Bài toán (JTBD)
+                </h3>
+                <p style="font-size:0.85rem; color:var(--text-muted);">
+                  Nội dung tài liệu lý thuyết đã sẵn sàng trên hệ thống. Bạn có thể chọn mức độ khó và số lượng câu hỏi ở bên phải để tạo bài kiểm tra Active Recall.
+                </p>
               </div>
             </div>
 
@@ -151,8 +199,8 @@
 
           </div>
 
-          <!-- Section: Interactive Quiz Form -->
-          <section class="quiz-section" id="quizSection" style="margin-top: 1.5rem;">
+          <!-- Section: Interactive Quiz Form (Chỉ hiển thị khi bấm nút Tạo Bài Kiểm Tra) -->
+          <section class="quiz-section" id="quizSection" style="margin-top: 1.5rem; display: none;">
             
             <div class="quiz-header-bar">
               <div>
@@ -274,6 +322,334 @@
 
         </div>
 
+        <!-- VIEW ADMIN LESSONS: TẢI LÊN PDF & CẤU HÌNH TÊN BÀI GIẢNG -->
+        <div id="view-admin-lessons" class="tab-view" style="display: none;">
+          
+          <div class="grid-2col">
+            
+            <!-- Admin Dropzone & Title Input Card -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <i class="ri-file-pdf-fill" style="color:var(--primary);"></i> Tải Lên PDF Bài Giảng & Đặt Tên Bài Học
+                </div>
+                <span class="pill" style="background:#f1f5f9; color:#475569;" id="adminFileStatusBadge">Sẵn sàng tải PDF</span>
+              </div>
+              
+              <div class="dropzone" id="pdfDropzone" onclick="triggerFileUpload()">
+                <div class="dropzone-icon">
+                  <i class="ri-upload-cloud-2-line"></i>
+                </div>
+                <h4 id="dropzoneTitle">Nhấp vào đây hoặc kéo thả file PDF bài lý thuyết mới vào</h4>
+                <p id="dropzoneSubtitle">Hỗ trợ PDF slide bài giảng, transcript (Tối đa 25MB)</p>
+                <input type="file" id="pdfFileInput" class="file-input" accept=".pdf" onchange="handleFileSelect(event)">
+              </div>
+
+              <!-- Lesson Title Input Field (Dưới phần nạp PDF) -->
+              <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <div class="form-group">
+                  <label class="form-label" style="font-weight:700;">Tên Bài Giảng (Hiển thị ở Header & cho Học viên)</label>
+                  <input type="text" id="adminLessonTitleInput" class="form-input" value="Bài 01: Nhập môn AI Product & Xác định Bài toán (JTBD)" placeholder="Ví dụ: Bài 01: Nhập môn AI Product & Xác định Bài toán (JTBD)">
+                  <p style="font-size:0.78rem; color:var(--text-muted); margin-top:0.35rem;">
+                    Tên bài giảng nhập ở đây sẽ quyết định tên hiển thị trên thanh Header và bài học của Học viên.
+                  </p>
+                </div>
+
+                <button class="btn btn-primary" style="width:100%; justify-content:center; margin-top:0.75rem;" onclick="updateAdminLesson()">
+                  <i class="ri-check-line"></i> Cập Nhật Bài Giảng Cho Toàn Lớp
+                </button>
+              </div>
+            </div>
+
+            <!-- Active Lesson Status Preview -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <i class="ri-article-line" style="color:var(--secondary);"></i> Thông Tin Bài Giảng Hiện Tại
+                </div>
+                <span class="pill" style="background:var(--primary-light); color:var(--primary); font-weight:700;">Đang phát</span>
+              </div>
+
+              <div style="padding:0.5rem 0;">
+                <div style="margin-bottom:1.25rem;">
+                  <span style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Tên bài giảng đang phát:</span>
+                  <h4 id="adminActiveLessonTitleDisplay" style="font-size:1.05rem; font-weight:700; color:var(--primary); margin-top:0.25rem; line-height:1.4;">
+                    Bài 01: Nhập môn AI Product & Xác định Bài toán (JTBD)
+                  </h4>
+                </div>
+
+                <div style="margin-bottom:1.25rem;">
+                  <span style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; font-weight:700;">File PDF trích xuất:</span>
+                  <p id="adminActiveFileName" style="font-size:0.88rem; font-weight:600; color:var(--text-main); margin-top:0.25rem;">
+                    📄 sample_vlearn_lecture.pdf (Đã nạp bài mẫu VLearn)
+                  </p>
+                </div>
+
+                <div style="padding:0.85rem; background:#f8fafc; border-radius:var(--radius-sm); border:1px dashed var(--border-color);">
+                  <span style="font-size:0.8rem; font-weight:700; color:var(--text-main); display:block; margin-bottom:0.25rem;">
+                    <i class="ri-broadcast-line" style="color:var(--success);"></i> Đồng Bộ Tự Động:
+                  </span>
+                  <p style="font-size:0.78rem; color:var(--text-muted);">
+                    Khi bạn nhấn "Cập Nhật Bài Giảng Cho Toàn Lớp", tiêu đề bài giảng ở thanh Header và giao diện Học viên sẽ lập tức đổi theo tên bạn vừa nhập.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- VIEW 3: ADMIN DASHBOARD (QUẢN TRỊ LỚP HỌC) -->
+        <div id="view-admin-dashboard" class="tab-view" style="display: none;">
+          
+          <!-- Admin Metric Cards Grid -->
+          <div class="admin-metrics-grid">
+            <div class="stat-card">
+              <div class="stat-icon icon-blue"><i class="ri-team-line"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">Tổng Học Viên Class K3</span>
+                <h3 class="stat-value" id="adminTotalStudents">1,024</h3>
+                <span class="stat-sub text-success"><i class="ri-arrow-up-line"></i> +12% tuần này</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon icon-purple"><i class="ri-pulse-line"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">Tổng Quiz Đã Tự Động Sinh</span>
+                <h3 class="stat-value" id="adminTotalQuizzes">15,420</h3>
+                <span class="stat-sub text-muted">~15 bài / học viên</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon icon-green"><i class="ri-award-line"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">Điểm Trung Bình Toàn Lớp</span>
+                <h3 class="stat-value" id="adminClassAvg">78.5%</h3>
+                <span class="stat-sub text-success"><i class="ri-check-double-line"></i> Đạt Quality Bar >= 75%</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-icon icon-red"><i class="ri-alarm-warning-line"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">Học Viên Cảnh Báo Lỗ Hổng</span>
+                <h3 class="stat-value" style="color:var(--danger);" id="adminAtRiskCount">146 HV</h3>
+                <span class="stat-sub text-danger">Tỷ lệ hổng kiến thức > 30%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Grid 2-Col: Class Knowledge Gap Breakdown & Admin Action Center -->
+          <div class="grid-2col" style="margin-top: 1.5rem;">
+            
+            <!-- Class-wide Gap Distribution -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <i class="ri-pie-chart-line" style="color:var(--primary)"></i> Phân Tích Lỗ Hổng Kiến Thức Toàn Lớp (Class-wide Gap Map)
+                </div>
+                <span class="pill" style="background:#fee2e2; color:#b91c1c; font-weight:700;">Top Rủi Ro Kiến Thức</span>
+              </div>
+              <p style="font-size:0.88rem; color:var(--text-muted); margin-bottom:1rem;">
+                Hệ thống AI tổng hợp tự động các chủ đề bài giảng có tỷ lệ học viên làm sai nhiều nhất:
+              </p>
+
+              <div id="adminClassGapContainer" style="display:flex; flex-direction:column; gap:1rem;">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+
+            <!-- Admin Quick Actions & Class Announcements -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <i class="ri-flashlight-line" style="color:var(--warning)"></i> Thao Tác Nhanh Dành Cho Giảng Viên
+                </div>
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:0.9rem;">
+                <div class="admin-action-item" onclick="triggerClassRemediationNotice()">
+                  <div class="action-icon"><i class="ri-notification-3-line"></i></div>
+                  <div>
+                    <h5 style="font-size:0.92rem; font-weight:700;">Gửi Thông Báo Ôn Tập Tự Động</h5>
+                    <p style="font-size:0.8rem; color:var(--text-muted);">Gửi nhắc nhở và bài quiz củng cố cho 146 học viên có nguy cơ hổng kiến thức.</p>
+                  </div>
+                </div>
+
+                <div class="admin-action-item" onclick="exportClassReport()">
+                  <div class="action-icon"><i class="ri-file-download-line"></i></div>
+                  <div>
+                    <h5 style="font-size:0.92rem; font-weight:700;">Xuất Báo Cáo Hackathon CSV</h5>
+                    <p style="font-size:0.8rem; color:var(--text-muted);">Xuất dữ liệu lượt làm bài & tỷ lệ khớp Golden set để nộp hội đồng.</p>
+                  </div>
+                </div>
+
+                <div class="admin-action-item" onclick="switchNav('admin-config')">
+                  <div class="action-icon"><i class="ri-equalizer-line"></i></div>
+                  <div>
+                    <h5 style="font-size:0.92rem; font-weight:700;">Tối Ưu Prompt Guardrails</h5>
+                    <p style="font-size:0.8rem; color:var(--text-muted);">Điều chỉnh quy tắc Grounding [Txx-NNN] và ngưỡng chống bịa nguồn.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- VIEW 4: ADMIN STUDENT ROSTER & RISK AUDIT -->
+        <div id="view-admin-students" class="tab-view" style="display: none;">
+          
+          <div class="card">
+            <div class="card-header" style="flex-wrap:wrap; gap:1rem;">
+              <div class="card-title">
+                <i class="ri-group-line" style="color:var(--primary)"></i> Quản Lý Danh Sách Học Viên & Cảnh Báo Lỗ Hổng
+              </div>
+              
+              <!-- Filter Controls -->
+              <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                <input type="text" id="adminStudentSearch" class="form-input" style="width:220px; padding:0.4rem 0.75rem; font-size:0.85rem;" placeholder="Tìm theo tên / Mã HV..." oninput="filterAdminStudents()">
+                
+                <select id="adminRiskFilter" class="form-select" style="width:160px; padding:0.4rem 0.75rem; font-size:0.85rem;" onchange="filterAdminStudents()">
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="danger">🚨 Cảnh báo nặng</option>
+                  <option value="warning">⚠️ Cần lưu ý</option>
+                  <option value="safe">✓ An toàn</option>
+                </select>
+
+                <button class="btn btn-secondary" style="font-size:0.8rem; padding:0.45rem 0.85rem;" onclick="resetStudentFilter()">
+                  <i class="ri-refresh-line"></i> Làm mới
+                </button>
+              </div>
+            </div>
+
+            <!-- Student Roster Table -->
+            <div style="overflow-x: auto; margin-top: 0.5rem;">
+              <table class="history-table" id="adminStudentsTable">
+                <thead>
+                  <tr>
+                    <th>Mã HV</th>
+                    <th>Họ & Tên Học Viên</th>
+                    <th>Lớp Học</th>
+                    <th>Hoạt Động</th>
+                    <th>Số Lần Thử</th>
+                    <th>Điểm TB</th>
+                    <th>Chủ Đề Hổng Nặng Nhất</th>
+                    <th>Trạng Thái</th>
+                    <th style="text-align:right;">Thao Tác</th>
+                  </tr>
+                </thead>
+                <tbody id="adminStudentsTableBody">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- VIEW 5: ADMIN AI PROMPT GUARDRAILS & CONFIG -->
+        <div id="view-admin-config" class="tab-view" style="display: none;">
+          
+          <div class="grid-2col">
+            
+            <!-- Guardrail Controls Form -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <i class="ri-shield-keyhole-line" style="color:var(--primary)"></i> Cấu Hình System Prompt & Grounding Guardrails
+                </div>
+              </div>
+
+              <div class="guardrail-form">
+                
+                <div class="toggle-group">
+                  <div>
+                    <strong>Bắt buộc Grounding trích dẫn PDF [Trang N]</strong>
+                    <p style="font-size:0.78rem; color:var(--text-muted);">Mọi giải thích quiz bắt buộc đính kèm mã trang từ tài liệu gốc VLearn.</p>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="guardrailStrictGrounding" checked onchange="updateGuardrailPreview()">
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+
+                <div class="toggle-group">
+                  <div>
+                    <strong>Từ chối câu hỏi ngoài phạm vi (Out-of-Scope)</strong>
+                    <p style="font-size:0.78rem; color:var(--text-muted);">Kích hoạt cơ chế từ chối khi học viên hỏi ngoài bài giảng (Lớp chỗ khó #1 & #3).</p>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="guardrailRefuseOutOfScope" checked onchange="updateGuardrailPreview()">
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+
+                <div class="form-group" style="margin-top:1rem;">
+                  <label class="form-label">Mức độ Automation (Dựa trên Cost-of-error)</label>
+                  <select id="guardrailAutomationLevel" class="form-select" onchange="updateGuardrailPreview()">
+                    <option value="augment">Augment (AI gợi ý quiz - Học viên chủ động chọn & nộp)</option>
+                    <option value="conditional">Conditional (AI chấm điểm - Giảng viên duyệt trường hợp nghi ngờ)</option>
+                    <option value="automate">Automate (Tự động chấm & ghi điểm chính thức)</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Ngưỡng Chống Bịa Nguồn (Hallucination Guard Filter): <span id="hallucinationVal" style="color:var(--primary); font-weight:700;">85%</span></label>
+                  <input type="range" id="guardrailHallucination" min="50" max="99" value="85" class="range-slider" oninput="document.getElementById('hallucinationVal').innerText = this.value + '%'; updateGuardrailPreview();">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Nhiệt độ Model (Temperature): <span id="tempVal" style="color:var(--primary); font-weight:700;">0.20</span></label>
+                  <input type="range" id="guardrailTemp" min="0" max="100" value="20" class="range-slider" oninput="document.getElementById('tempVal').innerText = (this.value / 100).toFixed(2); updateGuardrailPreview();">
+                </div>
+
+                <button class="btn btn-primary" style="width:100%; justify-content:center; margin-top:1rem;" onclick="saveGuardrailSettings()">
+                  <i class="ri-save-3-line"></i> Lưu Cấu Hình Guardrails AI
+                </button>
+              </div>
+            </div>
+
+            <!-- JSON Output & System Prompt Preview Card -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <i class="ri-code-s-slash-line" style="color:var(--secondary)"></i> System Prompt Runtime & Guardrail Spec
+                </div>
+                <span class="pill" style="background:#e0e7ff; color:#3730a3; font-weight:700;">JSON Preview</span>
+              </div>
+
+              <div style="position:relative;">
+                <pre class="json-code-box" id="jsonGuardrailPreview">
+{
+  "strictGrounding": true,
+  "requireCitation": true,
+  "refuseOutOfScope": true,
+  "automationLevel": "augment",
+  "temperature": 0.2,
+  "hallucinationFilter": 0.85
+}
+                </pre>
+              </div>
+
+              <div style="margin-top:1rem; padding:0.85rem; background:#f8fafc; border-radius:var(--radius-sm); border:1px dashed var(--border-color);">
+                <span style="font-size:0.8rem; font-weight:700; color:var(--text-main); display:block; margin-bottom:0.25rem;">
+                  <i class="ri-information-line"></i> Ghi chú dành cho Giảng viên:
+                </span>
+                <p style="font-size:0.78rem; color:var(--text-muted);">
+                  Cấu hình này sẽ trực tiếp điều chỉnh prompt guardrail cho toàn bộ các lượt sinh quiz và phản hồi của chatbot AI Tutor dành cho học viên.
+                </p>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
       </div>
     </main>
 
@@ -313,13 +689,13 @@
   <!-- API Key Modal Settings -->
   <div id="apiModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); backdrop-filter:blur(4px); z-index:2000; align-items:center; justify-content:center;">
     <div style="background:#fff; border-radius:var(--radius-md); padding:2rem; width:90%; max-width:480px; box-shadow:var(--shadow-lg);">
-      <h3 style="font-size:1.2rem; font-weight:700; margin-bottom:0.75rem;">Cấu Hình Gemini API Key (Tùy Chọn)</h3>
+      <h3 style="font-size:1.2rem; font-weight:700; margin-bottom:0.75rem;">Cấu Hình API Key (Tùy Chọn)</h3>
       <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1.25rem;">
-        Hệ thống tích hợp sẵn Bộ sinh Smart Generator mô phỏng offline cực mượt. Nếu bạn muốn kết nối trực tiếp với LLM Google Gemini thật, hãy điền API Key vào bên dưới.
+        Hệ thống tích hợp sẵn Bộ sinh Smart Generator mô phỏng offline cực mượt. Nếu bạn muốn kết nối trực tiếp với LLM thật, hãy điền API Key vào bên dưới.
       </p>
       <div class="form-group">
-        <label class="form-label">Gemini API Key</label>
-        <input type="password" id="geminiApiKeyInput" class="form-input" placeholder="AIzaSy...">
+        <label class="form-label">API Key</label>
+        <input type="password" id="geminiApiKeyInput" class="form-input" placeholder="Nhập API Key tại đây...">
       </div>
       <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.5rem;">
         <button class="btn btn-secondary" onclick="closeApiModal()">Đóng</button>
