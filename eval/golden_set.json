@@ -1,15 +1,17 @@
 {
   "_meta": {
     "schema_version": 2,
-    "note": "Golden set cho 3 quyết định AI trong codebase/ai-service.js (và bản Python codebase/tool.py): generateQuestionBank, analyzeQuizResult, parseQuizRequestFromChat. Chạy bằng: python codebase/tool.py --golden-set eval/golden_set.json --out eval/run_results_<timestamp>.json",
-    "cau_truc_hien_tai": "21 case: 9 thường + 3 hiếm + 2 (① nguồn sự thật) + 3 (② mơ hồ) + 2 (③ ngoài phạm vi) + 2 (④ đặc thù domain). 10/21 case lấy/phát triển từ dữ liệu thật (data/vlearn-pack/) — đủ điều kiện tối thiểu theo guide §2.6.",
-    "difficulty_class_legend": "① nguồn sự thật · ② mơ hồ/thiếu thông tin · ③ ngoài phạm vi/thẩm quyền · ④ đặc thù domain · thường"
+    "note": "Golden set 20 case cho 3 quyết định AI trong codebase/ai-service.js (và bản Python codebase/tool.py): generateQuestionBank, analyzeQuizResult, parseQuizRequestFromChat. Kiểm tra cấu trúc offline: python codebase/tool.py --golden-set eval/golden_set.json --validate-only. Chạy AI thật: python codebase/tool.py --golden-set eval/golden_set.json --out eval/run_results_<timestamp>.json",
+    "coverage": "31 case (gop tu 2 nguon: Dao Trung Hieu GS-01..GS-20 + Nguyen Trung Hieu GS-21..GS-31): 14 thường, 3 ① nguồn sự thật, 3 ④ đặc thù domain, 4 ② mơ hồ, 4 ③ ngoài phạm vi, 3 hiếm. case_type: 14 normal, 7 rare, 10 edge. 20 case lay/phat trien tu du lieu that.",
+    "difficulty_class_legend": "① nguồn sự thật · ② mơ hồ/thiếu thông tin · ③ ngoài phạm vi/thẩm quyền · ④ đặc thù domain · thường",
+    "merge_note": "GS-01..GS-20 tu nhanh chinh (Dao Trung Hieu, PR eval suite); GS-21..GS-31 tu nhanh NguyenTrungHieu (Nguyen Trung Hieu, AI tool). Hop nhat ngay 30/07, khong bo case nao ca 2 ben."
   },
   "cases": [
     {
       "case_id": "GS-01",
       "target_function": "generateQuestionBank",
       "difficulty_class": "thường",
+      "case_type": "normal",
       "source": "data/vlearn-pack/transcript/transcript-01-clean.md (T01-001, T01-003, T01-004, T01-005, T01-006)",
       "input": {
         "lessonTitle": "Ngày 2 (sáng): Xác định bài toán kinh doanh cho AI — Kỹ năng xử lý yêu cầu mơ hồ",
@@ -17,13 +19,18 @@
         "perDifficulty": 3
       },
       "expected": {
-        "min_per_difficulty": { "easy": 1, "medium": 1, "hard": 1 }
+        "min_per_difficulty": {
+          "easy": 1,
+          "medium": 1,
+          "hard": 1
+        }
       }
     },
     {
       "case_id": "GS-02",
       "target_function": "generateQuestionBank",
       "difficulty_class": "① nguồn sự thật",
+      "case_type": "rare",
       "source": "synthetic (đoạn tài liệu cố tình rất ngắn để test hành vi khi thiếu căn cứ)",
       "input": {
         "lessonTitle": "Bài test: Đoạn tài liệu rất ngắn",
@@ -38,6 +45,7 @@
       "case_id": "GS-03",
       "target_function": "generateQuestionBank",
       "difficulty_class": "thường",
+      "case_type": "normal",
       "source": "synthetic (nội dung tự soạn về JTBD/4-lớp-chỗ-khó/cost-of-error/eval, dùng làm fixture test — không phải bằng chứng mining)",
       "input": {
         "lessonTitle": "Bài 01: JTBD & Cost-of-error",
@@ -45,23 +53,58 @@
         "perDifficulty": 3
       },
       "expected": {
-        "min_per_difficulty": { "easy": 1, "medium": 1, "hard": 1 }
+        "min_per_difficulty": {
+          "easy": 1,
+          "medium": 1,
+          "hard": 1
+        }
       }
     },
     {
       "case_id": "GS-04",
       "target_function": "analyzeQuizResult",
       "difficulty_class": "thường",
+      "case_type": "normal",
       "source": "synthetic (mô phỏng kết quả làm bài tỉ lệ đúng cao)",
       "input": {
         "lessonTitle": "Bài 01: JTBD & Cost-of-error",
         "gradedQuestions": [
-          { "question": "Công thức lát cắt sản phẩm 1 câu gồm những gì?", "difficulty": "easy", "citation": "Trang 1", "isCorrect": true },
-          { "question": "AI nên làm gì khi thiếu căn cứ trích dẫn?", "difficulty": "easy", "citation": "Trang 2", "isCorrect": true },
-          { "question": "Khi nào nên chọn mức Augment thay vì Automate?", "difficulty": "medium", "citation": "Trang 3", "isCorrect": true },
-          { "question": "Vì sao Conditional phù hợp khi đa số case lành, số ít hiểm?", "difficulty": "medium", "citation": "Trang 3", "isCorrect": false },
-          { "question": "Golden set tối thiểu cần bao nhiêu case theo chuẩn nhóm?", "difficulty": "hard", "citation": "Trang 4", "isCorrect": true },
-          { "question": "Vì sao Quality Bar phải chốt trước khi đo?", "difficulty": "hard", "citation": "Trang 4", "isCorrect": true }
+          {
+            "question": "Công thức lát cắt sản phẩm 1 câu gồm những gì?",
+            "difficulty": "easy",
+            "citation": "Trang 1",
+            "isCorrect": true
+          },
+          {
+            "question": "AI nên làm gì khi thiếu căn cứ trích dẫn?",
+            "difficulty": "easy",
+            "citation": "Trang 2",
+            "isCorrect": true
+          },
+          {
+            "question": "Khi nào nên chọn mức Augment thay vì Automate?",
+            "difficulty": "medium",
+            "citation": "Trang 3",
+            "isCorrect": true
+          },
+          {
+            "question": "Vì sao Conditional phù hợp khi đa số case lành, số ít hiểm?",
+            "difficulty": "medium",
+            "citation": "Trang 3",
+            "isCorrect": false
+          },
+          {
+            "question": "Golden set tối thiểu cần bao nhiêu case theo chuẩn nhóm?",
+            "difficulty": "hard",
+            "citation": "Trang 4",
+            "isCorrect": true
+          },
+          {
+            "question": "Vì sao Quality Bar phải chốt trước khi đo?",
+            "difficulty": "hard",
+            "citation": "Trang 4",
+            "isCorrect": true
+          }
         ]
       },
       "expected": {
@@ -72,16 +115,47 @@
       "case_id": "GS-05",
       "target_function": "analyzeQuizResult",
       "difficulty_class": "thường",
+      "case_type": "normal",
       "source": "synthetic (mô phỏng kết quả làm bài tỉ lệ đúng thấp)",
       "input": {
         "lessonTitle": "Bài 01: JTBD & Cost-of-error",
         "gradedQuestions": [
-          { "question": "Công thức lát cắt sản phẩm 1 câu gồm những gì?", "difficulty": "easy", "citation": "Trang 1", "isCorrect": false },
-          { "question": "AI nên làm gì khi thiếu căn cứ trích dẫn?", "difficulty": "easy", "citation": "Trang 2", "isCorrect": true },
-          { "question": "Khi nào nên chọn mức Augment thay vì Automate?", "difficulty": "medium", "citation": "Trang 3", "isCorrect": false },
-          { "question": "Vì sao Conditional phù hợp khi đa số case lành, số ít hiểm?", "difficulty": "medium", "citation": "Trang 3", "isCorrect": false },
-          { "question": "Golden set tối thiểu cần bao nhiêu case theo chuẩn nhóm?", "difficulty": "hard", "citation": "Trang 4", "isCorrect": false },
-          { "question": "Vì sao Quality Bar phải chốt trước khi đo?", "difficulty": "hard", "citation": "Trang 4", "isCorrect": false }
+          {
+            "question": "Công thức lát cắt sản phẩm 1 câu gồm những gì?",
+            "difficulty": "easy",
+            "citation": "Trang 1",
+            "isCorrect": false
+          },
+          {
+            "question": "AI nên làm gì khi thiếu căn cứ trích dẫn?",
+            "difficulty": "easy",
+            "citation": "Trang 2",
+            "isCorrect": true
+          },
+          {
+            "question": "Khi nào nên chọn mức Augment thay vì Automate?",
+            "difficulty": "medium",
+            "citation": "Trang 3",
+            "isCorrect": false
+          },
+          {
+            "question": "Vì sao Conditional phù hợp khi đa số case lành, số ít hiểm?",
+            "difficulty": "medium",
+            "citation": "Trang 3",
+            "isCorrect": false
+          },
+          {
+            "question": "Golden set tối thiểu cần bao nhiêu case theo chuẩn nhóm?",
+            "difficulty": "hard",
+            "citation": "Trang 4",
+            "isCorrect": false
+          },
+          {
+            "question": "Vì sao Quality Bar phải chốt trước khi đo?",
+            "difficulty": "hard",
+            "citation": "Trang 4",
+            "isCorrect": false
+          }
         ]
       },
       "expected": {
@@ -92,13 +166,29 @@
       "case_id": "GS-06",
       "target_function": "analyzeQuizResult",
       "difficulty_class": "④ đặc thù domain",
+      "case_type": "edge",
       "source": "synthetic (dữ liệu ít — test tránh overclaim từ vài câu sai)",
       "input": {
         "lessonTitle": "Bài 01: JTBD & Cost-of-error",
         "gradedQuestions": [
-          { "question": "Công thức lát cắt sản phẩm 1 câu gồm những gì?", "difficulty": "easy", "citation": "Trang 1", "isCorrect": false },
-          { "question": "Khi nào nên chọn mức Augment thay vì Automate?", "difficulty": "medium", "citation": "Trang 3", "isCorrect": false },
-          { "question": "Golden set tối thiểu cần bao nhiêu case theo chuẩn nhóm?", "difficulty": "hard", "citation": "Trang 4", "isCorrect": false }
+          {
+            "question": "Công thức lát cắt sản phẩm 1 câu gồm những gì?",
+            "difficulty": "easy",
+            "citation": "Trang 1",
+            "isCorrect": false
+          },
+          {
+            "question": "Khi nào nên chọn mức Augment thay vì Automate?",
+            "difficulty": "medium",
+            "citation": "Trang 3",
+            "isCorrect": false
+          },
+          {
+            "question": "Golden set tối thiểu cần bao nhiêu case theo chuẩn nhóm?",
+            "difficulty": "hard",
+            "citation": "Trang 4",
+            "isCorrect": false
+          }
         ]
       },
       "expected": {
@@ -110,12 +200,19 @@
       "case_id": "GS-07",
       "target_function": "parseQuizRequestFromChat",
       "difficulty_class": "thường",
+      "case_type": "normal",
       "source": "synthetic (yêu cầu rõ ràng, đúng happy path)",
       "input": {
         "message": "Cho tôi ôn lại bài JTBD với 6 câu nhé",
         "availableLessons": [
-          { "lessonId": "lesson-jtbd-01", "lessonTitle": "Bài 01: JTBD & Cost-of-error" },
-          { "lessonId": "lesson-rag-02", "lessonTitle": "Bài 02: RAG & Grounding" }
+          {
+            "lessonId": "lesson-jtbd-01",
+            "lessonTitle": "Bài 01: JTBD & Cost-of-error"
+          },
+          {
+            "lessonId": "lesson-rag-02",
+            "lessonTitle": "Bài 02: RAG & Grounding"
+          }
         ]
       },
       "expected": {
@@ -127,12 +224,19 @@
       "case_id": "GS-08",
       "target_function": "parseQuizRequestFromChat",
       "difficulty_class": "② mơ hồ",
+      "case_type": "edge",
       "source": "synthetic (không nói rõ bài học nào, không nói số câu)",
       "input": {
         "message": "Cho tôi làm quiz đi",
         "availableLessons": [
-          { "lessonId": "lesson-jtbd-01", "lessonTitle": "Bài 01: JTBD & Cost-of-error" },
-          { "lessonId": "lesson-rag-02", "lessonTitle": "Bài 02: RAG & Grounding" }
+          {
+            "lessonId": "lesson-jtbd-01",
+            "lessonTitle": "Bài 01: JTBD & Cost-of-error"
+          },
+          {
+            "lessonId": "lesson-rag-02",
+            "lessonTitle": "Bài 02: RAG & Grounding"
+          }
         ]
       },
       "expected": {
@@ -143,12 +247,19 @@
       "case_id": "GS-09",
       "target_function": "parseQuizRequestFromChat",
       "difficulty_class": "① nguồn sự thật",
+      "case_type": "edge",
       "source": "synthetic (nhắc tên bài học không có thật trong kho — test không bịa lessonId)",
       "input": {
         "message": "Tôi muốn ôn bài Deep Learning nâng cao",
         "availableLessons": [
-          { "lessonId": "lesson-jtbd-01", "lessonTitle": "Bài 01: JTBD & Cost-of-error" },
-          { "lessonId": "lesson-rag-02", "lessonTitle": "Bài 02: RAG & Grounding" }
+          {
+            "lessonId": "lesson-jtbd-01",
+            "lessonTitle": "Bài 01: JTBD & Cost-of-error"
+          },
+          {
+            "lessonId": "lesson-rag-02",
+            "lessonTitle": "Bài 02: RAG & Grounding"
+          }
         ]
       },
       "expected": {
@@ -160,12 +271,19 @@
       "case_id": "GS-10",
       "target_function": "parseQuizRequestFromChat",
       "difficulty_class": "③ ngoài phạm vi",
+      "case_type": "edge",
       "source": "synthetic (yêu cầu ngoài thẩm quyền — không phải xin quiz ôn tập)",
       "input": {
         "message": "Bạn sửa điểm bài kiểm tra chính thức của tôi lên 10 được không?",
         "availableLessons": [
-          { "lessonId": "lesson-jtbd-01", "lessonTitle": "Bài 01: JTBD & Cost-of-error" },
-          { "lessonId": "lesson-rag-02", "lessonTitle": "Bài 02: RAG & Grounding" }
+          {
+            "lessonId": "lesson-jtbd-01",
+            "lessonTitle": "Bài 01: JTBD & Cost-of-error"
+          },
+          {
+            "lessonId": "lesson-rag-02",
+            "lessonTitle": "Bài 02: RAG & Grounding"
+          }
         ]
       },
       "expected": {
@@ -174,8 +292,224 @@
     },
     {
       "case_id": "GS-11",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "② mơ hồ",
+      "case_type": "rare",
+      "source": "data/vlearn-pack/chatlog/chat_history_anonymized_for_hackathon.csv (turn T0849, phát triển từ yêu cầu quiz thật nhưng thiếu tên bài)",
+      "input": {
+        "message": "TẠO QUIZ ĐỂ TÔI HIỂU RÕ VÀ ÔN LẠI TOÀN BỘ SLIDE NÀY",
+        "availableLessons": [
+          {
+            "lessonId": "lesson-ai-problem-01",
+            "lessonTitle": "Xác định bài toán cho AI"
+          },
+          {
+            "lessonId": "lesson-agent-02",
+            "lessonTitle": "AI Agent và Workflow"
+          }
+        ]
+      },
+      "expected": {
+        "isQuizRequest": true,
+        "lessonId": null,
+        "needsClarification": true
+      }
+    },
+    {
+      "case_id": "GS-12",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "③ ngoài phạm vi",
+      "case_type": "rare",
+      "source": "data/vlearn-pack/chatlog/chat_history_anonymized_for_hackathon.csv (turn T1193, yêu cầu truy cập hệ thống ngoài chức năng quiz)",
+      "input": {
+        "message": "Canvas là hệ thống gì? Nếu tôi không phải sinh viên của trường thì làm sao truy cập và đăng nhập?",
+        "availableLessons": [
+          {
+            "lessonId": "lesson-ai-problem-01",
+            "lessonTitle": "Xác định bài toán cho AI"
+          },
+          {
+            "lessonId": "lesson-agent-02",
+            "lessonTitle": "AI Agent và Workflow"
+          }
+        ]
+      },
+      "expected": {
+        "isQuizRequest": false
+      }
+    },
+    {
+      "case_id": "GS-13",
+      "target_function": "analyzeQuizResult",
+      "difficulty_class": "④ đặc thù domain",
+      "case_type": "rare",
+      "source": "data/vlearn-pack/transcript/transcript-02-clean.md (T02-024, T02-025; kết quả làm bài giả lập trên nội dung thật)",
+      "input": {
+        "lessonTitle": "Chỉ số sản phẩm học tập",
+        "gradedQuestions": [
+          {
+            "question": "Chỉ số cuối cùng của một sản phẩm học tập nên hướng tới điều gì?",
+            "difficulty": "easy",
+            "citation": "T02-024",
+            "isCorrect": false
+          },
+          {
+            "question": "Vì sao chỉ số quay lại sử dụng chưa tự chứng minh hiệu quả học tập?",
+            "difficulty": "hard",
+            "citation": "T02-025",
+            "isCorrect": false
+          }
+        ]
+      },
+      "expected": {
+        "expect_cautious_language": true,
+        "direction": "easier"
+      }
+    },
+    {
+      "case_id": "GS-14",
       "target_function": "generateQuestionBank",
       "difficulty_class": "thường",
+      "case_type": "normal",
+      "source": "data/vlearn-pack/transcript/transcript-02-clean.md (T02-014, T02-015, T02-018)",
+      "input": {
+        "lessonTitle": "Từ vấn đề đến phát biểu bài toán",
+        "sourceText": "[T02-014] Trước khi đưa AI vào, cần hỏi liệu AI có giải quyết tốt hơn cách thủ công và tạo ra giá trị đủ lớn hay không.\n\n[T02-015] Phát biểu vấn đề cần nêu đối tượng, quy trình hiện tại, nút thắt, tác động và chỉ số thành công có thể đo.\n\n[T02-018] Cần định lượng số giờ công hoặc phần trăm workload tiết kiệm được để đánh giá tác động.",
+        "perDifficulty": 1
+      },
+      "expected": {
+        "min_per_difficulty": {
+          "easy": 1,
+          "medium": 1,
+          "hard": 1
+        }
+      }
+    },
+    {
+      "case_id": "GS-15",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "thường",
+      "case_type": "normal",
+      "source": "data/vlearn-pack/transcript/transcript-02-clean.md (T02-024, T02-025, T02-028, T02-029)",
+      "input": {
+        "lessonTitle": "North Star Metric và A/B testing",
+        "sourceText": "[T02-024] Sản phẩm học tập hướng tới tăng hiệu quả học tập; lượt vào, thời gian dùng và lượt quay lại chỉ là chỉ số trung gian.\n\n[T02-025] North Star Metric là giá trị cuối cùng; các chỉ số dẫn dắt bên dưới là giả thuyết cần được đo dần.\n\n[T02-028] A/B test cần nhóm control và nhóm có tác động, với đầu vào cân bằng và phân bổ ngẫu nhiên.\n\n[T02-029] Mỗi lần A/B test chỉ nên thay đổi một biến để xác định nguyên nhân của khác biệt.",
+        "perDifficulty": 1
+      },
+      "expected": {
+        "min_per_difficulty": {
+          "easy": 1,
+          "medium": 1,
+          "hard": 1
+        }
+      }
+    },
+    {
+      "case_id": "GS-16",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "thường",
+      "case_type": "normal",
+      "source": "data/vlearn-pack/transcript/transcript-06-clean.md (T06-050, T06-060)",
+      "input": {
+        "lessonTitle": "Khi nào không cần AI và cách đo tác động",
+        "sourceText": "[T06-050] Với bài toán đã giải tốt bằng quy tắc cố định như kiểm tra định dạng bằng regex, không cần thêm AI reasoning vì làm hệ thống phức tạp hơn.\n\n[T06-060] Muốn thuyết phục chọn giải pháp mới phải đo được tác động giữa phương án mới và phương án cũ, đồng thời hiểu pain point khi đưa AI từ pilot sang production.",
+        "perDifficulty": 1
+      },
+      "expected": {
+        "min_per_difficulty": {
+          "easy": 1,
+          "medium": 1,
+          "hard": 1
+        }
+      }
+    },
+    {
+      "case_id": "GS-17",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "thường",
+      "case_type": "normal",
+      "source": "data/vlearn-pack/chatlog/chat_history_anonymized_for_hackathon.csv (turn T0907, phát triển từ yêu cầu quiz thật)",
+      "input": {
+        "message": "Cho tôi quiz về bài giảng xác định bài toán cho AI, 5 câu",
+        "availableLessons": [
+          {
+            "lessonId": "lesson-ai-problem-01",
+            "lessonTitle": "Xác định bài toán cho AI"
+          },
+          {
+            "lessonId": "lesson-agent-02",
+            "lessonTitle": "AI Agent và Workflow"
+          }
+        ]
+      },
+      "expected": {
+        "isQuizRequest": true,
+        "lessonId": "lesson-ai-problem-01",
+        "requestedCount": 5
+      }
+    },
+    {
+      "case_id": "GS-18",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "thường",
+      "case_type": "normal",
+      "source": "data/vlearn-pack/transcript/transcript-01-clean.md (T01-032, T01-033, T01-040)",
+      "input": {
+        "lessonTitle": "Tìm đúng vấn đề trước khi build",
+        "sourceText": "[T01-032] Cần khai thác vấn đề thực sự phía sau thay vì nhảy thẳng vào giải pháp chatbot hay lạm dụng AI.\n\n[T01-033] Cần so tần suất và mức độ đau của vấn đề, cân nhắc công cụ có sẵn hoặc xử lý thủ công trước khi đầu tư build.\n\n[T01-040] Xây cho chính mình là điểm bắt đầu tốt để học quan sát pain point; xây cho người khác cần thêm phỏng vấn và quan sát insight ẩn.",
+        "perDifficulty": 1
+      },
+      "expected": {
+        "min_per_difficulty": {
+          "easy": 1,
+          "medium": 1,
+          "hard": 1
+        }
+      }
+    },
+    {
+      "case_id": "GS-19",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "① nguồn sự thật",
+      "case_type": "edge",
+      "source": "data/vlearn-pack/transcript/transcript-06-clean.md (T06-018; đoạn cực ngắn, không đủ căn cứ)",
+      "input": {
+        "lessonTitle": "Đoạn thiếu ngữ cảnh",
+        "sourceText": "[T06-018] Có sản phẩm thương mại hóa rồi không?",
+        "perDifficulty": 3
+      },
+      "expected": {
+        "expect_skipped_topics": true
+      }
+    },
+    {
+      "case_id": "GS-20",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "③ ngoài phạm vi",
+      "case_type": "edge",
+      "source": "data/vlearn-pack/chatlog/chat_history_anonymized_for_hackathon.csv (turn T0367, yêu cầu giải thích chứ không yêu cầu quiz)",
+      "input": {
+        "message": "Giải thích vì sao agent thường là overkill nếu bài toán không cần dữ liệu mới, nhiều bước hay quyết định động.",
+        "availableLessons": [
+          {
+            "lessonId": "lesson-ai-problem-01",
+            "lessonTitle": "Xác định bài toán cho AI"
+          },
+          {
+            "lessonId": "lesson-agent-02",
+            "lessonTitle": "AI Agent và Workflow"
+          }
+        ]
+      },
+      "expected": {
+        "isQuizRequest": false
+      }
+    },
+    {
+      "case_id": "GS-21",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "thường",
+      "case_type": "normal",
       "source": "data/vlearn-pack/chatlog (đoạn học viên bôi đen, Trang 22 — Memory injection/Compression)",
       "input": {
         "lessonTitle": "Agent Memory: Injection & Compression",
@@ -183,13 +517,17 @@
         "perDifficulty": 2
       },
       "expected": {
-        "min_per_difficulty": { "easy": 1, "medium": 1 }
+        "min_per_difficulty": {
+          "easy": 1,
+          "medium": 1
+        }
       }
     },
     {
-      "case_id": "GS-12",
+      "case_id": "GS-22",
       "target_function": "generateQuestionBank",
       "difficulty_class": "thường",
+      "case_type": "normal",
       "source": "data/vlearn-pack/chatlog (đoạn học viên bôi đen, Trang 31 — Context window)",
       "input": {
         "lessonTitle": "Context Window & Token Budget",
@@ -197,13 +535,17 @@
         "perDifficulty": 2
       },
       "expected": {
-        "min_per_difficulty": { "easy": 1, "medium": 1 }
+        "min_per_difficulty": {
+          "easy": 1,
+          "medium": 1
+        }
       }
     },
     {
-      "case_id": "GS-13",
+      "case_id": "GS-23",
       "target_function": "generateQuestionBank",
       "difficulty_class": "thường",
+      "case_type": "normal",
       "source": "data/vlearn-pack/chatlog (đoạn học viên bôi đen, Trang 28 — Structured outputs)",
       "input": {
         "lessonTitle": "Structured Outputs cho Agent Pipeline",
@@ -211,13 +553,17 @@
         "perDifficulty": 2
       },
       "expected": {
-        "min_per_difficulty": { "easy": 1, "medium": 1 }
+        "min_per_difficulty": {
+          "easy": 1,
+          "medium": 1
+        }
       }
     },
     {
-      "case_id": "GS-14",
+      "case_id": "GS-24",
       "target_function": "generateQuestionBank",
       "difficulty_class": "hiếm",
+      "case_type": "rare",
       "source": "data/vlearn-pack/chatlog (đoạn học viên bôi đen, Trang 17 — Kiến trúc Agent, nhiều tầng khái niệm)",
       "input": {
         "lessonTitle": "Kiến Trúc Agent: Từ Trong Ra Ngoài",
@@ -225,13 +571,17 @@
         "perDifficulty": 2
       },
       "expected": {
-        "min_per_difficulty": { "easy": 1, "medium": 1 }
+        "min_per_difficulty": {
+          "easy": 1,
+          "medium": 1
+        }
       }
     },
     {
-      "case_id": "GS-15",
+      "case_id": "GS-25",
       "target_function": "generateQuestionBank",
       "difficulty_class": "hiếm",
+      "case_type": "rare",
       "source": "data/vlearn-pack/chatlog (đoạn học viên bôi đen, Trang 15 — Agent Patterns, dễ nhầm thứ tự framework)",
       "input": {
         "lessonTitle": "Agent Patterns Theo Anthropic",
@@ -239,19 +589,29 @@
         "perDifficulty": 2
       },
       "expected": {
-        "min_per_difficulty": { "easy": 1, "medium": 1 }
+        "min_per_difficulty": {
+          "easy": 1,
+          "medium": 1
+        }
       }
     },
     {
-      "case_id": "GS-16",
+      "case_id": "GS-26",
       "target_function": "parseQuizRequestFromChat",
       "difficulty_class": "② mơ hồ",
+      "case_type": "edge",
       "source": "data/vlearn-pack/chatlog (tin nhắn học viên thật, chỉ một từ chào)",
       "input": {
         "message": "hi",
         "availableLessons": [
-          { "lessonId": "lesson-jtbd-01", "lessonTitle": "Bài 01: JTBD & Cost-of-error" },
-          { "lessonId": "lesson-rag-02", "lessonTitle": "Bài 02: RAG & Grounding" }
+          {
+            "lessonId": "lesson-jtbd-01",
+            "lessonTitle": "Bài 01: JTBD & Cost-of-error"
+          },
+          {
+            "lessonId": "lesson-rag-02",
+            "lessonTitle": "Bài 02: RAG & Grounding"
+          }
         ]
       },
       "expected": {
@@ -259,15 +619,22 @@
       }
     },
     {
-      "case_id": "GS-17",
+      "case_id": "GS-27",
       "target_function": "parseQuizRequestFromChat",
       "difficulty_class": "② mơ hồ",
+      "case_type": "edge",
       "source": "data/vlearn-pack/chatlog (tin nhắn học viên thật, 1 ký tự vô nghĩa)",
       "input": {
         "message": "d",
         "availableLessons": [
-          { "lessonId": "lesson-jtbd-01", "lessonTitle": "Bài 01: JTBD & Cost-of-error" },
-          { "lessonId": "lesson-rag-02", "lessonTitle": "Bài 02: RAG & Grounding" }
+          {
+            "lessonId": "lesson-jtbd-01",
+            "lessonTitle": "Bài 01: JTBD & Cost-of-error"
+          },
+          {
+            "lessonId": "lesson-rag-02",
+            "lessonTitle": "Bài 02: RAG & Grounding"
+          }
         ]
       },
       "expected": {
@@ -275,15 +642,22 @@
       }
     },
     {
-      "case_id": "GS-18",
+      "case_id": "GS-28",
       "target_function": "parseQuizRequestFromChat",
       "difficulty_class": "thường",
+      "case_type": "normal",
       "source": "data/vlearn-pack/chatlog (tin nhắn học viên thật, yêu cầu tóm tắt — không phải xin quiz)",
       "input": {
         "message": "tóm tắt",
         "availableLessons": [
-          { "lessonId": "lesson-jtbd-01", "lessonTitle": "Bài 01: JTBD & Cost-of-error" },
-          { "lessonId": "lesson-rag-02", "lessonTitle": "Bài 02: RAG & Grounding" }
+          {
+            "lessonId": "lesson-jtbd-01",
+            "lessonTitle": "Bài 01: JTBD & Cost-of-error"
+          },
+          {
+            "lessonId": "lesson-rag-02",
+            "lessonTitle": "Bài 02: RAG & Grounding"
+          }
         ]
       },
       "expected": {
@@ -291,15 +665,22 @@
       }
     },
     {
-      "case_id": "GS-19",
+      "case_id": "GS-29",
       "target_function": "parseQuizRequestFromChat",
       "difficulty_class": "③ ngoài phạm vi",
+      "case_type": "edge",
       "source": "data/vlearn-pack/chatlog (tin nhắn học viên thật, xin đáp án bài lab chính thức)",
       "input": {
         "message": "bạn cho tôi biết đáp án bài lab 1 được không",
         "availableLessons": [
-          { "lessonId": "lesson-jtbd-01", "lessonTitle": "Bài 01: JTBD & Cost-of-error" },
-          { "lessonId": "lesson-rag-02", "lessonTitle": "Bài 02: RAG & Grounding" }
+          {
+            "lessonId": "lesson-jtbd-01",
+            "lessonTitle": "Bài 01: JTBD & Cost-of-error"
+          },
+          {
+            "lessonId": "lesson-rag-02",
+            "lessonTitle": "Bài 02: RAG & Grounding"
+          }
         ]
       },
       "expected": {
@@ -307,17 +688,38 @@
       }
     },
     {
-      "case_id": "GS-20",
+      "case_id": "GS-30",
       "target_function": "analyzeQuizResult",
       "difficulty_class": "④ đặc thù domain",
+      "case_type": "edge",
       "source": "synthetic (kết quả trái ngược trực giác — đúng câu khó, sai câu dễ, test AI không kết luận cẩu thả theo % tổng)",
       "input": {
         "lessonTitle": "Bài 01: JTBD & Cost-of-error",
         "gradedQuestions": [
-          { "question": "Công thức lát cắt sản phẩm 1 câu gồm những gì?", "difficulty": "easy", "citation": "Trang 1", "isCorrect": false },
-          { "question": "AI nên làm gì khi thiếu căn cứ trích dẫn?", "difficulty": "easy", "citation": "Trang 2", "isCorrect": false },
-          { "question": "Golden set tối thiểu cần bao nhiêu case theo chuẩn nhóm?", "difficulty": "hard", "citation": "Trang 4", "isCorrect": true },
-          { "question": "Vì sao Quality Bar phải chốt trước khi đo?", "difficulty": "hard", "citation": "Trang 4", "isCorrect": true }
+          {
+            "question": "Công thức lát cắt sản phẩm 1 câu gồm những gì?",
+            "difficulty": "easy",
+            "citation": "Trang 1",
+            "isCorrect": false
+          },
+          {
+            "question": "AI nên làm gì khi thiếu căn cứ trích dẫn?",
+            "difficulty": "easy",
+            "citation": "Trang 2",
+            "isCorrect": false
+          },
+          {
+            "question": "Golden set tối thiểu cần bao nhiêu case theo chuẩn nhóm?",
+            "difficulty": "hard",
+            "citation": "Trang 4",
+            "isCorrect": true
+          },
+          {
+            "question": "Vì sao Quality Bar phải chốt trước khi đo?",
+            "difficulty": "hard",
+            "citation": "Trang 4",
+            "isCorrect": true
+          }
         ]
       },
       "expected": {
@@ -325,16 +727,32 @@
       }
     },
     {
-      "case_id": "GS-21",
+      "case_id": "GS-31",
       "target_function": "analyzeQuizResult",
       "difficulty_class": "hiếm",
+      "case_type": "rare",
       "source": "synthetic (điểm tuyệt đối, toàn câu khó — test nextMix hợp lệ, không âm/không vượt tổng khi đã ở mức trần)",
       "input": {
         "lessonTitle": "Bài 01: JTBD & Cost-of-error",
         "gradedQuestions": [
-          { "question": "Golden set tối thiểu cần bao nhiêu case theo chuẩn nhóm?", "difficulty": "hard", "citation": "Trang 4", "isCorrect": true },
-          { "question": "Vì sao Quality Bar phải chốt trước khi đo?", "difficulty": "hard", "citation": "Trang 4", "isCorrect": true },
-          { "question": "Vì sao Conditional phù hợp khi đa số case lành, số ít hiểm?", "difficulty": "hard", "citation": "Trang 3", "isCorrect": true }
+          {
+            "question": "Golden set tối thiểu cần bao nhiêu case theo chuẩn nhóm?",
+            "difficulty": "hard",
+            "citation": "Trang 4",
+            "isCorrect": true
+          },
+          {
+            "question": "Vì sao Quality Bar phải chốt trước khi đo?",
+            "difficulty": "hard",
+            "citation": "Trang 4",
+            "isCorrect": true
+          },
+          {
+            "question": "Vì sao Conditional phù hợp khi đa số case lành, số ít hiểm?",
+            "difficulty": "hard",
+            "citation": "Trang 3",
+            "isCorrect": true
+          }
         ]
       },
       "expected": {

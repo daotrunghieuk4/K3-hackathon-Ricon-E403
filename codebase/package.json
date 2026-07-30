@@ -6,7 +6,10 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "eval:validate": "python tool.py --validate-only",
+    "eval:case": "python tool.py",
+    "eval": "python tool.py --out ../eval/run_results_latest.json"
   },
   "dependencies": {
     "cors": "^2.8.5",

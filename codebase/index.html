@@ -179,6 +179,7 @@
                     <option value="medium">Trung bình (Hiểu & Vận dụng khái niệm)</option>
                     <option value="easy">Cơ bản (Nhận biết định nghĩa & Thuật ngữ)</option>
                     <option value="hard">Nâng cao (Phân tích case study & Cost-of-error)</option>
+                    <option value="adaptive" id="adaptiveDifficultyOption">Thích ứng theo lịch sử (AI đề xuất)</option>
                   </select>
                 </div>
 
@@ -189,6 +190,14 @@
                     <option value="6">6 câu (Bài test tổng hợp)</option>
                     <option value="10">10 câu (Bài test chuyên sâu)</option>
                   </select>
+                </div>
+
+                <div class="adaptive-mix-compact" id="adaptiveMixCompact">
+                  <div class="adaptive-mix-title">
+                    <i class="ri-brain-line"></i>
+                    Tỷ lệ thích ứng chưa có dữ liệu
+                  </div>
+                  <p>Hoàn thành một bài quiz để AI đề xuất tỷ lệ câu dễ, trung bình và khó cho lượt tiếp theo.</p>
                 </div>
 
                 <button class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 0.5rem;" onclick="generateQuiz()">
@@ -238,6 +247,7 @@
               <p style="color: var(--text-muted); max-width: 600px; margin: 0 auto 1.25rem auto;" id="resultFeedbackDesc">
                 Kết quả đã được tự động lưu vào Lịch sử & Phân tích lỗ hổng kiến thức.
               </p>
+              <div class="adaptive-analysis-card" id="adaptiveAnalysisResult" style="display:none;"></div>
               <div style="display:flex; justify-center; gap:1rem; flex-wrap:wrap;">
                 <button class="btn btn-secondary" onclick="switchNav('analytics')">
                   <i class="ri-bar-chart-box-line"></i> Xem Bản Đồ Lỗ Hổng & Hướng Dẫn Ôn Tập
@@ -275,6 +285,17 @@
                 <!-- Populated dynamically -->
               </div>
             </div>
+          </div>
+
+          <div class="card adaptive-history-card" id="adaptiveHistoryCard" style="margin-top: 1.5rem; display:none;">
+            <div class="card-header">
+              <div class="card-title">
+                <i class="ri-brain-line" style="color:var(--primary)"></i>
+                AI phân tích lịch sử & điều chỉnh độ khó
+              </div>
+              <span class="pill" id="adaptiveAnalysisMode">AI Adaptive</span>
+            </div>
+            <div id="adaptiveHistoryContent"></div>
           </div>
 
           <!-- Study Guidance / AI Remediation Recommendation Card -->

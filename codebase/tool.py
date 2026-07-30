@@ -30,8 +30,13 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
-DEFAULT_MODEL = "gemini-flash-lite-latest"
-CALL_LOG_PATH = os.path.join("eval", "tool_call_log.json")
+DEFAULT_MODEL = "gemini-3.6-flash"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.dirname(SCRIPT_DIR)
+DEFAULT_ENV_PATH = os.path.join(REPO_ROOT, ".env")
+DEFAULT_GOLDEN_SET_PATH = os.path.join(REPO_ROOT, "eval", "golden_set.json")
+DEFAULT_RESULTS_DIR = os.path.join(REPO_ROOT, "eval")
+CALL_LOG_PATH = os.path.join(DEFAULT_RESULTS_DIR, "tool_call_log.json")
 
 # Console Windows mặc định dùng cp1252, không in được tiếng Việt UTF-8 -> ép lại.
 for _stream in (sys.stdout, sys.stderr):
@@ -56,12 +61,15 @@ def load_dotenv(path=".env"):
 
 
 def get_api_key():
+    # Hỗ trợ chạy từ repo root, từ codebase/, hoặc qua npm scripts.
+    load_dotenv(os.path.join(REPO_ROOT, ".env"))
+    load_dotenv(os.path.join(SCRIPT_DIR, ".env"))
     load_dotenv()
     key = os.environ.get("GEMINI_API_KEY", "")
     if not key:
         raise RuntimeError(
-            "Thiếu GEMINI_API_KEY. Set biến môi trường (export GEMINI_API_KEY=...) "
-            "hoặc tạo file .env (GEMINI_API_KEY=...) cùng thư mục với tool.py."
+            f"Thiếu GEMINI_API_KEY. Hãy mở {DEFAULT_ENV_PATH}, điền "
+            "GEMINI_API_KEY=... rồi chạy lại. Không commit file .env."
         )
     return key
 
@@ -90,7 +98,7 @@ def append_call_log(entry):
 
 
 def _parse_retry_delay_seconds(err_body, default=20):
-    """Đọc 'Please retry in Ns' hoặc retryDelay":"Ns" từ lỗi 429 của Gemini."""
+    """Đọc 'Please retry in Ns' hoặc "retryDelay":"Ns" từ lỗi 429 của Gemini."""
     m = re.search(r'"retryDelay"\s*:\s*"(\d+)s"', err_body) or re.search(
         r"retry in (\d+(?:\.\d+)?)s", err_body
     )
@@ -99,11 +107,11 @@ def _parse_retry_delay_seconds(err_body, default=20):
     return default
 
 
-def call_gemini(purpose, prompt, max_retries=3):
+def call_gemini(purpose, prompt, max_retries=2):
     """Lời gọi Gemini thật duy nhất trong file này, ép model trả JSON.
-    Không có key -> ném lỗi rõ ràng (không im lặng bịa kết quả). Free tier hay
-    bị 429 (rate-limit theo phút) khi chạy golden set liên tiếp -> tự chờ theo
-    retryDelay Gemini đề xuất rồi thử lại, tối đa max_retries lần."""
+    Không có key -> ném lỗi rõ ràng (không im lặng bịa kết quả). Nếu dính 429
+    giữa các case (rate-limit phút) -> tự chờ theo retryDelay Gemini đề xuất
+    rồi thử lại tối đa max_retries lần trước khi báo lỗi thật cho case đó."""
     api_key = get_api_key()
     model = get_model()
     url = (
@@ -130,7 +138,7 @@ def call_gemini(purpose, prompt, max_retries=3):
 
     data = None
     last_err = None
-    for attempt in range(1, max_retries + 1):
+    for attempt in range(1, max_retries + 2):
         req = urllib.request.Request(
             url, data=body, headers={"Content-Type": "application/json"}, method="POST"
         )
@@ -141,7 +149,7 @@ def call_gemini(purpose, prompt, max_retries=3):
             break
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="ignore")
-            if e.code == 429 and attempt < max_retries:
+            if e.code == 429 and attempt <= max_retries:
                 wait_s = _parse_retry_delay_seconds(err_body)
                 print(
                     f"  [rate-limit 429] chờ {wait_s:.0f}s rồi thử lại (lần {attempt}/{max_retries})...",
@@ -423,6 +431,11 @@ def evaluate_parse_quiz_request(case, result):
     if "lessonId" in expected and result.get("lessonId") != expected["lessonId"]:
         issues.append(f"lessonId = {result.get('lessonId')}, kỳ vọng {expected['lessonId']}")
 
+    if "requestedCount" in expected and result.get("requestedCount") != expected["requestedCount"]:
+        issues.append(
+            f"requestedCount = {result.get('requestedCount')}, kỳ vọng {expected['requestedCount']}"
+        )
+
     if expected.get("needsClarification"):
         if not result.get("needsClarification"):
             issues.append("Kỳ vọng needsClarification=true (thông tin mơ hồ/ngoài kho) nhưng AI không hỏi lại")
@@ -450,18 +463,143 @@ def load_cases(path):
     return data["cases"] if isinstance(data, dict) and "cases" in data else data
 
 
-def run_golden_set(golden_set_path, out_path, delay_seconds=3):
+def validate_golden_set(golden_set_path):
+    """Kiểm tra coverage của golden set mà không gọi API AI."""
     cases = load_cases(golden_set_path)
+    errors = []
+    warnings = []
+
+    case_ids = [case.get("case_id") for case in cases]
+    duplicate_ids = sorted({case_id for case_id in case_ids if case_ids.count(case_id) > 1})
+    if duplicate_ids:
+        errors.append(f"case_id bị trùng: {', '.join(duplicate_ids)}")
+
+    if len(cases) < 20:
+        errors.append(f"Golden set chỉ có {len(cases)} case, yêu cầu tối thiểu 20")
+
+    unknown_targets = sorted(
+        {
+            case.get("target_function")
+            for case in cases
+            if case.get("target_function") not in CALLERS
+        }
+    )
+    if unknown_targets:
+        errors.append(f"target_function không hỗ trợ: {', '.join(map(str, unknown_targets))}")
+
+    missing_fields = []
+    for index, case in enumerate(cases, start=1):
+        for field in ("case_id", "target_function", "difficulty_class", "source", "input", "expected"):
+            if field not in case:
+                missing_fields.append(f"case #{index} thiếu '{field}'")
+    errors.extend(missing_fields)
+
+    difficulty_counts = {}
+    for marker in ("①", "②", "③", "④"):
+        difficulty_counts[marker] = sum(
+            1 for case in cases if str(case.get("difficulty_class", "")).startswith(marker)
+        )
+        if difficulty_counts[marker] < 2:
+            errors.append(
+                f"Lớp chỗ khó {marker} chỉ có {difficulty_counts[marker]} case, yêu cầu tối thiểu 2"
+            )
+
+    normal_count = sum(case.get("case_type") == "normal" for case in cases)
+    rare_count = sum(case.get("case_type") == "rare" for case in cases)
+    real_source_count = sum(
+        str(case.get("source", "")).startswith("data/vlearn-pack/") for case in cases
+    )
+
+    # Guide chỉ nói "8-10 thường + 2-4 hiếm" như tỉ lệ gợi ý cho bộ ~20 case;
+    # không giới hạn trên khi bộ lớn hơn (nhiều case thật hơn là tốt hơn) ->
+    # kiểm tối thiểu, không ép đúng khoảng cứng.
+    if normal_count < 8:
+        errors.append(f"case thường = {normal_count}, yêu cầu tối thiểu 8")
+    if rare_count < 2:
+        errors.append(f"case hiếm = {rare_count}, yêu cầu tối thiểu 2")
+    if real_source_count < 10:
+        errors.append(
+            f"case từ chatlog/transcript thật = {real_source_count}, yêu cầu tối thiểu 10"
+        )
+
+    if len(cases) > 20:
+        warnings.append(
+            f"Golden set có {len(cases)} case; rubric chỉ yêu cầu tối thiểu 20, hãy cân nhắc chi phí API"
+        )
+
+    summary = {
+        "total_cases": len(cases),
+        "normal_cases": normal_count,
+        "rare_cases": rare_count,
+        "real_source_cases": real_source_count,
+        "difficulty_class_counts": difficulty_counts,
+        "errors": errors,
+        "warnings": warnings,
+        "valid": not errors,
+    }
+    return summary
+
+
+def run_golden_set(
+    golden_set_path,
+    out_path,
+    selected_case_ids=None,
+    resume_from_path=None,
+    request_delay_seconds=7.0,
+):
+    cases = load_cases(golden_set_path)
+    selected_case_ids = selected_case_ids or []
+
+    if selected_case_ids:
+        known_ids = {case["case_id"] for case in cases}
+        unknown_ids = sorted(set(selected_case_ids) - known_ids)
+        if unknown_ids:
+            raise ValueError(f"Không tìm thấy case_id: {', '.join(unknown_ids)}")
+        selected_ids = set(selected_case_ids)
+        cases = [case for case in cases if case["case_id"] in selected_ids]
+
+    previous_results = {}
+    if resume_from_path:
+        with open(resume_from_path, "r", encoding="utf-8") as f:
+            previous_run = json.load(f)
+        previous_results = {
+            result["case_id"]: result for result in previous_run.get("results", [])
+        }
+
+    cases_to_call = [
+        case
+        for case in cases
+        if previous_results.get(case["case_id"], {}).get("status") != "PASS"
+    ]
+
+    # Kiểm tra cấu hình một lần để tránh ghi nhiều lỗi giống nhau khi thiếu API key.
+    if cases_to_call:
+        get_api_key()
+
     results = []
     passed_count = 0
+    new_call_count = 0
 
-    for idx, case in enumerate(cases):
-        if idx > 0 and delay_seconds > 0:
-            time.sleep(delay_seconds)  # tránh dồn request, dễ dính 429 free-tier
-
+    for case in cases:
         case_id = case["case_id"]
         target = case["target_function"]
+
+        previous_result = previous_results.get(case_id)
+        if previous_result and previous_result.get("status") == "PASS":
+            print(f"[{case_id}] dùng lại kết quả PASS từ lượt trước", file=sys.stderr)
+            results.append(previous_result)
+            passed_count += 1
+            continue
+
+        if new_call_count > 0 and request_delay_seconds > 0:
+            print(
+                f"[{case_id}] chờ {request_delay_seconds:g}s để tránh rate limit ...",
+                file=sys.stderr,
+            )
+            time.sleep(request_delay_seconds)
+
         print(f"[{case_id}] gọi {target} ...", file=sys.stderr)
+        new_call_count += 1
 
         try:
             output = CALLERS[target](case["input"])
@@ -479,6 +617,8 @@ def run_golden_set(golden_set_path, out_path, delay_seconds=3):
                 "case_id": case_id,
                 "target_function": target,
                 "difficulty_class": case.get("difficulty_class"),
+                "case_type": case.get("case_type"),
+                "source": case.get("source"),
                 "status": "PASS" if ok else "FAIL",
                 "issues": issues,
                 "output": output,
@@ -488,11 +628,47 @@ def run_golden_set(golden_set_path, out_path, delay_seconds=3):
     total = len(cases)
     pct = round(passed_count / total * 100, 1) if total else 0.0
 
+    generated_questions = [
+        question
+        for result in results
+        if result["target_function"] == "generateQuestionBank" and result["output"]
+        for question in result["output"].get("questions", [])
+    ]
+    cited_questions = sum(
+        bool((question.get("citation") or "").strip()) for question in generated_questions
+    )
+    citation_rate = (
+        round(cited_questions / len(generated_questions) * 100, 1)
+        if generated_questions
+        else 0.0
+    )
+    is_full_run = not selected_case_ids
+    quality_bar = {
+        "case_pass_rate_target_pct": 85.0,
+        "citation_presence_target_pct": 100.0,
+        "case_pass_rate_met": pct >= 85.0,
+        "citation_presence_pct": citation_rate,
+        "citation_presence_met": bool(generated_questions) and citation_rate == 100.0,
+        "comparable_to_quality_bar": is_full_run,
+    }
+    quality_bar["overall_met"] = (
+        quality_bar["case_pass_rate_met"] and quality_bar["citation_presence_met"]
+        if is_full_run
+        else None
+    )
+
     run_record = {
         "run_at": datetime.now(timezone.utc).isoformat(),
+        "golden_set": golden_set_path,
+        "model": get_model(),
+        "selected_case_ids": selected_case_ids or None,
+        "resumed_from": resume_from_path,
+        "new_call_count": new_call_count,
+        "request_delay_seconds": request_delay_seconds,
         "total_cases": total,
         "passed": passed_count,
         "pass_rate_pct": pct,
+        "quality_bar": quality_bar,
         "results": results,
     }
 
@@ -511,21 +687,75 @@ def main():
     parser = argparse.ArgumentParser(
         description="Chạy golden set offline cho VLearn AI tool (dùng cho R4 - Kiểm thử)"
     )
-    parser.add_argument("--golden-set", default="eval/golden_set.json")
+    parser.add_argument("--golden-set", default=DEFAULT_GOLDEN_SET_PATH)
     parser.add_argument(
         "--out", default=None, help="Mặc định: eval/run_results_<timestamp>.json"
     )
     parser.add_argument(
-        "--delay",
+        "--validate-only",
+        action="store_true",
+        help="Chỉ kiểm tra cấu trúc/coverage golden set, không gọi Gemini API",
+    )
+    parser.add_argument(
+        "--case-id",
+        action="append",
+        default=[],
+        help="Chỉ chạy case chỉ định; có thể lặp cờ này nhiều lần, ví dụ --case-id GS-01 --case-id GS-07",
+    )
+    parser.add_argument(
+        "--check-connection",
+        action="store_true",
+        help="Gọi một request Gemini nhỏ để kiểm tra API key/model trước khi chạy eval",
+    )
+    parser.add_argument(
+        "--resume-from",
+        default=None,
+        help="Dùng lại các case PASS từ một file kết quả cũ và chỉ gọi lại case chưa PASS",
+    )
+    parser.add_argument(
+        "--request-delay",
         type=float,
-        default=3,
-        help="Số giây chờ giữa mỗi case (tránh 429 rate-limit free-tier). Mặc định 3s.",
+        default=7.0,
+        help="Số giây chờ giữa các request Gemini mới (mặc định: 7)",
     )
     args = parser.parse_args()
 
-    out_path = args.out or f"eval/run_results_{int(time.time())}.json"
-    run_golden_set(args.golden_set, out_path, delay_seconds=args.delay)
+    if args.validate_only:
+        summary = validate_golden_set(args.golden_set)
+        print(json.dumps(summary, ensure_ascii=False, indent=2))
+        raise SystemExit(0 if summary["valid"] else 1)
+
+    if args.check_connection:
+        result = call_gemini(
+            "connection_check",
+            'Chỉ trả về JSON đúng schema sau, không thêm nội dung khác: {"ok": true}',
+        )
+        if result.get("ok") is not True:
+            raise RuntimeError(f"Gemini phản hồi không đúng kỳ vọng: {result}")
+        print(
+            json.dumps(
+                {"connected": True, "model": get_model()},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        raise SystemExit(0)
+
+    out_path = args.out or os.path.join(
+        DEFAULT_RESULTS_DIR, f"run_results_{int(time.time())}.json"
+    )
+    run_golden_set(
+        args.golden_set,
+        out_path,
+        args.case_id,
+        args.resume_from,
+        args.request_delay,
+    )
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (RuntimeError, ValueError) as exc:
+        print(f"Lỗi: {exc}", file=sys.stderr)
+        raise SystemExit(1)

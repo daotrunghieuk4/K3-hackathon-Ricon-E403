@@ -11,6 +11,8 @@
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
+const https = require('https');
+const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
@@ -23,6 +25,7 @@ app.use(express.json({ limit: '20mb' }));
 // PostgreSQL Connection Pool Setup
 let dbPool = null;
 let isDbConnected = false;
+let isQuestionBankTableReady = false;
 
 function initDatabaseConnection() {
   const connectionString = process.env.DATABASE_URL;
@@ -39,15 +42,22 @@ function initDatabaseConnection() {
         : false
     });
 
-    dbPool.query('SELECT NOW()', (err, res) => {
+    dbPool.query(
+      `SELECT NOW() AS now,
+              to_regclass('vlearn.pdf_question_banks') IS NOT NULL AS question_bank_table_ready`,
+      (err, result) => {
       if (err) {
         console.error('[Database Connection Error]:', err.message);
         isDbConnected = false;
+        isQuestionBankTableReady = false;
       } else {
-        console.log('[Database] Kết nối thành công tới PostgreSQL tại:', res.rows[0].now);
+        console.log('[Database] Kết nối thành công tới PostgreSQL tại:', result.rows[0].now);
         isDbConnected = true;
+        isQuestionBankTableReady = result.rows[0].question_bank_table_ready;
+        console.log('[Database] Bảng vlearn.pdf_question_banks:', isQuestionBankTableReady ? 'sẵn sàng' : 'chưa được tạo');
       }
-    });
+      }
+    );
   } catch (err) {
     console.error('[Database Setup Exception]:', err.message);
     isDbConnected = false;
@@ -59,6 +69,7 @@ initDatabaseConnection();
 // Fallback In-Memory Stores when DB connection string is pending
 const fallbackStore = {
   documents: [],
+  questionBanks: [],
   quizzes: [],
   attempts: [
     {
@@ -91,14 +102,357 @@ const KNOWLEDGE_TOPICS = [
 ];
 
 /* ==========================================================================
-   GHI CHÚ KIẾN TRÚC: server.js KHÔNG gọi Gemini trực tiếp.
-   Mọi lời gọi AI thật (sinh kho câu hỏi, phân tích kết quả, hiểu ý định chat)
-   nằm ở codebase/ai-service.js, chạy trong trình duyệt. server.js chỉ đóng
-   vai trò lưu trữ/truy xuất PostgreSQL cho dữ liệu FE đã xử lý xong.
-   (Trước đây file này có hàm callGeminiApi() gọi model "gemini-1.5-flash" —
-   đã gỡ vì trùng lặp và dùng model không còn khả dụng, gây nhầm lẫn 2 nguồn
-   AI khác nhau cho cùng một tính năng.)
+   HELPER: GEMINI LLM API REST CALL
    ========================================================================== */
+async function callGeminiApi(prompt, systemInstruction = '', apiKeyOverride = '') {
+  const apiKey = apiKeyOverride || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY chưa được cung cấp.');
+  }
+
+  const model = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const payload = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: prompt }]
+      }
+    ]
+  };
+
+  if (systemInstruction) {
+    payload.systemInstruction = {
+      parts: [{ text: systemInstruction }]
+    };
+  }
+
+  const payloadData = JSON.stringify(payload);
+
+  return new Promise((resolve, reject) => {
+    const url = new URL(endpoint);
+    const options = {
+      hostname: url.hostname,
+      path: url.pathname + url.search,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payloadData)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => body += chunk);
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          try {
+            const parsed = JSON.parse(body);
+            const textResponse = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            resolve(textResponse);
+          } catch (e) {
+            reject(new Error('Lỗi parse phản hồi từ Gemini API: ' + e.message));
+          }
+        } else {
+          let apiMessage = '';
+          try {
+            apiMessage = JSON.parse(body)?.error?.message || '';
+          } catch {
+            apiMessage = body;
+          }
+          if (res.statusCode === 429) {
+            reject(new Error('Gemini đã hết quota/rate limit. Question bank mới không được tạo; hệ thống sẽ không dùng câu hỏi cũ thay thế.'));
+          } else {
+            reject(new Error(`Gemini API Error (${res.statusCode}): ${apiMessage || 'Không có nội dung lỗi'}`));
+          }
+        }
+      });
+    });
+
+    req.on('error', (e) => reject(e));
+    req.write(payloadData);
+    req.end();
+  });
+}
+
+function cleanGeminiJson(text) {
+  let cleaned = (text || '').trim();
+  if (cleaned.startsWith('```json')) cleaned = cleaned.replace(/^```json/, '');
+  if (cleaned.startsWith('```')) cleaned = cleaned.replace(/^```/, '');
+  if (cleaned.endsWith('```')) cleaned = cleaned.replace(/```$/, '');
+  return cleaned.trim();
+}
+
+function normalizeDifficultyMix(mix, count, fallbackDifficulty = 'medium') {
+  const levels = ['easy', 'medium', 'hard'];
+  const safeCount = Math.max(1, Number.parseInt(count, 10) || 1);
+  const source = mix && typeof mix === 'object' ? mix : {};
+  const weights = levels.map(level => Math.max(0, Number(source[level]) || 0));
+  const weightTotal = weights.reduce((sum, value) => sum + value, 0);
+
+  if (weightTotal <= 0) {
+    const result = { easy: 0, medium: 0, hard: 0 };
+    result[levels.includes(fallbackDifficulty) ? fallbackDifficulty : 'medium'] = safeCount;
+    return result;
+  }
+
+  const raw = weights.map(weight => (weight / weightTotal) * safeCount);
+  const counts = raw.map(value => Math.floor(value));
+  let remaining = safeCount - counts.reduce((sum, value) => sum + value, 0);
+  const remainderOrder = raw
+    .map((value, index) => ({ index, remainder: value - counts[index] }))
+    .sort((a, b) => b.remainder - a.remainder);
+
+  for (let i = 0; i < remaining; i++) {
+    counts[remainderOrder[i % remainderOrder.length].index] += 1;
+  }
+
+  return { easy: counts[0], medium: counts[1], hard: counts[2] };
+}
+
+function buildDifficultyPlan(mix) {
+  return [
+    ...Array(mix.easy || 0).fill('easy'),
+    ...Array(mix.medium || 0).fill('medium'),
+    ...Array(mix.hard || 0).fill('hard')
+  ];
+}
+
+function requireUuid(value, fieldName) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(normalized)) {
+    const error = new Error(`${fieldName} không hợp lệ`);
+    error.statusCode = 400;
+    throw error;
+  }
+  return normalized;
+}
+
+function sourceHash(extractedText) {
+  return crypto.createHash('sha256').update(extractedText, 'utf8').digest('hex');
+}
+
+function sameDifficultyMix(left, right) {
+  return ['easy', 'medium', 'hard'].every(level =>
+    Number(left?.[level] || 0) === Number(right?.[level] || 0)
+  );
+}
+
+function buildQuestionGenerationPrompt({ lessonTitle, extractedText, count, difficultyMix }) {
+  return {
+    systemInstruction: `Bạn là chuyên gia thiết kế câu hỏi Active Recall cho VLearn.
+Mọi câu hỏi phải được tạo CHỈ từ nội dung của đúng tài liệu PDF được cung cấp trong yêu cầu hiện tại.
+Không được dùng câu hỏi mẫu, kiến thức từ tài liệu khác hoặc kiến thức ngoài tài liệu.
+Nếu tài liệu không đủ căn cứ, hãy báo lỗi thay vì tự bịa.
+Giải thích đáp án đúng và sai phải chi tiết, mang tính sư phạm, không mở đầu bằng nguồn.
+Nguồn chỉ nằm trong field "citation".
+Chỉ trả về một JSON array hợp lệ, không dùng markdown code fence.`,
+    prompt: `MÃ NGUỒN CỦA TÀI LIỆU HIỆN TẠI: ${sourceHash(extractedText)}
+BÀI GIẢNG: ${lessonTitle || 'Tài liệu PDF mới tải lên'}
+
+NỘI DUNG DUY NHẤT ĐƯỢC PHÉP DÙNG:
+"""
+${extractedText.substring(0, 15000)}
+"""
+
+Tạo đúng ${count} câu trắc nghiệm, phân bổ chính xác:
+- easy: ${difficultyMix.easy}
+- medium: ${difficultyMix.medium}
+- hard: ${difficultyMix.hard}
+
+Yêu cầu bắt buộc:
+1. Mỗi câu phải kiểm tra một ý có thật trong tài liệu hiện tại và có 4 lựa chọn.
+2. correctAnswer là chỉ số 0-3.
+3. explanationCorrect dài 3-5 câu: nêu khái niệm, lập luận và cách áp dụng.
+4. explanationIncorrect dài 2-4 câu: chỉ ra ngộ nhận và cách sửa.
+5. optionExplanations có đúng 4 phần tử tương ứng với 4 lựa chọn.
+6. citation phải là nhãn [Trang N] có thật trong nội dung trên.
+7. topicTag là một nhãn ngắn mô tả đúng chủ đề của câu, không bắt buộc thuộc danh sách cố định.
+
+Schema:
+[
+  {
+    "type": "single",
+    "difficulty": "easy",
+    "topicTag": "chu-de-ngan",
+    "question": "Nội dung câu hỏi",
+    "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
+    "correctAnswer": 0,
+    "explanationCorrect": "...",
+    "explanationIncorrect": "...",
+    "optionExplanations": ["...", "...", "...", "..."],
+    "citation": "[Trang N]"
+  }
+]`
+  };
+}
+
+async function generateQuestionsForSource({ lessonTitle, extractedText, count, difficultyMix, apiKey }) {
+  if (!String(extractedText || '').trim() || String(extractedText).trim().length < 80) {
+    const error = new Error('PDF không có đủ văn bản để AI tạo câu hỏi mới.');
+    error.statusCode = 422;
+    throw error;
+  }
+
+  const { prompt, systemInstruction } = buildQuestionGenerationPrompt({
+    lessonTitle,
+    extractedText,
+    count,
+    difficultyMix
+  });
+  const aiResponse = await callGeminiApi(prompt, systemInstruction, apiKey);
+  const parsed = JSON.parse(cleanGeminiJson(aiResponse));
+  if (!Array.isArray(parsed) || parsed.length !== count) {
+    throw new Error(`Gemini trả ${Array.isArray(parsed) ? parsed.length : 0}/${count} câu; question bank chưa được lưu.`);
+  }
+
+  const difficultyPlan = buildDifficultyPlan(difficultyMix);
+  return parsed.map((question, index) => {
+    const options = Array.isArray(question.options) ? question.options : [];
+    const correctAnswer = Number(question.correctAnswer);
+    if (!String(question.question || '').trim() || options.length !== 4) {
+      throw new Error(`Câu ${index + 1} không đúng cấu trúc 4 lựa chọn.`);
+    }
+    if (!Number.isInteger(correctAnswer) || correctAnswer < 0 || correctAnswer > 3) {
+      throw new Error(`Câu ${index + 1} có correctAnswer không hợp lệ.`);
+    }
+    const citation = String(question.citation || '').trim();
+    if (!/^\[Trang\s+\d+\]$/i.test(citation) || !extractedText.includes(citation)) {
+      throw new Error(`Câu ${index + 1} không có citation [Trang N] hợp lệ.`);
+    }
+    if (!Array.isArray(question.optionExplanations) || question.optionExplanations.length !== 4) {
+      throw new Error(`Câu ${index + 1} không có đủ 4 giải thích lựa chọn.`);
+    }
+    if (!String(question.explanationCorrect || '').trim() || !String(question.explanationIncorrect || '').trim()) {
+      throw new Error(`Câu ${index + 1} thiếu phần giải thích đáp án đúng hoặc sai.`);
+    }
+
+    return {
+      ...question,
+      id: index + 1,
+      type: 'single',
+      difficulty: difficultyPlan[index],
+      topicTag: String(question.topicTag || 'noi-dung-tai-lieu').trim(),
+      correctAnswer,
+      options,
+      explanationCorrect: String(question.explanationCorrect || '').trim(),
+      explanationIncorrect: String(question.explanationIncorrect || '').trim(),
+      optionExplanations: question.optionExplanations,
+      citation
+    };
+  });
+}
+
+async function persistQuestionBank(bank) {
+  fallbackStore.questionBanks.unshift(bank);
+  fallbackStore.questionBanks = fallbackStore.questionBanks.slice(0, 50);
+
+  if (!isDbConnected || !dbPool || !isQuestionBankTableReady) return false;
+
+  try {
+    await dbPool.query(
+      `INSERT INTO vlearn.pdf_question_banks
+        (id, source_id, lesson_title, original_filename, source_sha256, question_count, difficulty_mix, questions, generation_mode, model_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, 'gemini', $9)`,
+      [
+        bank.id,
+        bank.sourceId,
+        bank.lessonTitle,
+        bank.originalFilename,
+        bank.sourceSha256,
+        bank.questionCount,
+        JSON.stringify(bank.difficultyMix),
+        JSON.stringify(bank.questions),
+        bank.modelName
+      ]
+    );
+    return true;
+  } catch (error) {
+    console.error('[Question Bank DB Save Error]:', error.message);
+    return false;
+  }
+}
+
+async function findQuestionBank(bankId, sourceId) {
+  const memoryBank = fallbackStore.questionBanks.find(bank =>
+    bank.id === bankId && bank.sourceId === sourceId
+  );
+  if (memoryBank) return memoryBank;
+
+  if (!isDbConnected || !dbPool || !isQuestionBankTableReady) return null;
+
+  try {
+    const result = await dbPool.query(
+      `SELECT id, source_id, lesson_title, original_filename, source_sha256,
+              question_count, difficulty_mix, questions, model_name, created_at
+         FROM vlearn.pdf_question_banks
+        WHERE id = $1 AND source_id = $2
+        LIMIT 1`,
+      [bankId, sourceId]
+    );
+    if (!result.rows[0]) return null;
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      sourceId: row.source_id,
+      lessonTitle: row.lesson_title,
+      originalFilename: row.original_filename,
+      sourceSha256: row.source_sha256,
+      questionCount: row.question_count,
+      difficultyMix: row.difficulty_mix,
+      questions: row.questions,
+      modelName: row.model_name,
+      createdAt: row.created_at
+    };
+  } catch (error) {
+    console.error('[Question Bank DB Read Error]:', error.message);
+    return null;
+  }
+}
+
+function buildFallbackAdaptiveAnalysis(history, totalQuestions) {
+  const recent = Array.isArray(history) ? history.slice(0, 10) : [];
+  const latest = recent[0] || {};
+  const latestScore = Number(latest.scorePct) || 0;
+  const previousScores = recent.slice(1).map(item => Number(item.scorePct) || 0);
+  const previousAverage = previousScores.length
+    ? previousScores.reduce((sum, value) => sum + value, 0) / previousScores.length
+    : latestScore;
+
+  let performanceTrend = 'stable';
+  if (recent.length < 2) performanceTrend = 'insufficient_data';
+  else if (latestScore >= previousAverage + 8) performanceTrend = 'improving';
+  else if (latestScore <= previousAverage - 8) performanceTrend = 'declining';
+
+  let weights;
+  if (latestScore >= 80) weights = { easy: 20, medium: 30, hard: 50 };
+  else if (latestScore < 50) weights = { easy: 60, medium: 30, hard: 10 };
+  else weights = { easy: 30, medium: 50, hard: 20 };
+
+  const topicCounts = {};
+  recent.forEach(attempt => {
+    (attempt.missedTopics || []).forEach(topic => {
+      topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+    });
+  });
+  const weakTopics = Object.entries(topicCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([topic]) => topic);
+
+  return {
+    weakTopics,
+    summary: latestScore >= 80
+      ? 'Kết quả gần nhất cho thấy bạn đã nắm khá vững nội dung. Bài tiếp theo nên tăng tỷ trọng câu khó nhưng vẫn giữ một phần câu dễ và trung bình để kiểm tra độ ổn định.'
+      : latestScore < 50
+        ? 'Kết quả gần nhất cho thấy nền tảng kiến thức chưa ổn định. Bài tiếp theo nên tăng câu dễ, củng cố khái niệm cốt lõi rồi mới nâng dần độ khó.'
+        : 'Kết quả đang ở mức trung gian. Bài tiếp theo nên tập trung câu trung bình, kèm một số câu dễ để củng cố và câu khó để kiểm tra khả năng vận dụng.',
+    performanceTrend,
+    reasoning: `Điểm gần nhất là ${latestScore}%; điểm trung bình các lượt trước là ${Math.round(previousAverage)}%.`,
+    nextMix: normalizeDifficultyMix(weights, totalQuestions, 'medium')
+  };
+}
 
 /* ==========================================================================
    1. HEALTH CHECK ENDPOINT
@@ -110,9 +464,12 @@ app.get('/api/health', (req, res) => {
     database: {
       configured: !!process.env.DATABASE_URL,
       connected: isDbConnected,
+      questionBankTableReady: isQuestionBankTableReady,
       mode: isDbConnected ? 'PostgreSQL Active (vlearn schema)' : 'Fallback LocalStorage/Memory'
     },
-    note: 'Server này không gọi AI — lời gọi AI thật nằm ở codebase/ai-service.js (trình duyệt).'
+    ai: {
+      geminiKeyPresent: !!process.env.GEMINI_API_KEY
+    }
   });
 });
 
@@ -170,62 +527,188 @@ app.post('/api/documents/save', async (req, res) => {
   return res.json({ success: true, savedToDb: false, mode: 'In-Memory Fallback' });
 });
 
-/* ==========================================================================
-   3. QUIZ PERSISTENCE ENDPOINT: /api/quiz/generate
-   Lưu ý: endpoint này KHÔNG tự sinh câu hỏi bằng AI nữa. FE phải tự gọi
-   VLearnAI.generateQuestionBank() (codebase/ai-service.js) ở trình duyệt để
-   có bộ câu hỏi thật, rồi gửi kết quả đã sinh xong sang đây chỉ để lưu vào
-   PostgreSQL. Nếu FE gửi lên mà không kèm quiz, dùng bộ mô phỏng cục bộ để
-   không chặn demo (không phải AI thật — đánh dấu rõ trong "mode").
-   ========================================================================== */
-app.post('/api/quiz/generate', async (req, res) => {
-  const { lessonTitle, count = 4, difficulty = 'medium', quiz: clientGeneratedQuiz } = req.body;
+/*
+ * Generate a fresh, source-scoped question bank immediately after a PDF is
+ * extracted in the browser. The sourceId is created for that upload only.
+ */
+app.post('/api/question-banks/generate', async (req, res) => {
+  try {
+    const {
+      sourceId,
+      lessonTitle,
+      originalFilename,
+      extractedText,
+      count = 4,
+      difficulty = 'medium',
+      difficultyMix = null,
+      apiKey
+    } = req.body;
 
-  let quizList = Array.isArray(clientGeneratedQuiz) ? clientGeneratedQuiz : [];
-  const isAiGenerated = quizList.length > 0;
+    const safeSourceId = requireUuid(sourceId, 'sourceId');
+    const safeCount = Math.min(10, Math.max(1, Number.parseInt(count, 10) || 4));
+    const effectiveMix = normalizeDifficultyMix(
+      difficultyMix,
+      safeCount,
+      difficulty === 'adaptive' ? 'medium' : difficulty
+    );
+    const questions = await generateQuestionsForSource({
+      lessonTitle,
+      extractedText,
+      count: safeCount,
+      difficultyMix: effectiveMix,
+      apiKey
+    });
+    const bank = {
+      id: crypto.randomUUID(),
+      sourceId: safeSourceId,
+      lessonTitle: String(lessonTitle || originalFilename || 'Tài liệu PDF').trim(),
+      originalFilename: String(originalFilename || 'document.pdf').trim(),
+      sourceSha256: sourceHash(extractedText),
+      questionCount: questions.length,
+      difficultyMix: effectiveMix,
+      questions,
+      modelName: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
+      createdAt: new Date().toISOString()
+    };
+    const savedToDb = await persistQuestionBank(bank);
 
-  if (quizList.length === 0) {
-    quizList = generateSmartFallbackQuiz(lessonTitle, count, difficulty);
+    return res.json({
+      success: true,
+      sourceId: bank.sourceId,
+      questionBankId: bank.id,
+      questionCount: bank.questionCount,
+      difficultyMix: bank.difficultyMix,
+      savedToDb,
+      mode: savedToDb ? 'PostgreSQL Question Bank' : 'Source-scoped Memory Bank'
+    });
+  } catch (error) {
+    console.error('[Question Bank Generation Error]:', error.message);
+    return res.status(error.statusCode || 502).json({
+      success: false,
+      error: error.message,
+      code: 'QUESTION_BANK_GENERATION_FAILED'
+    });
   }
-
-  // Save Generated Quiz into PostgreSQL Database
-  if (isDbConnected && dbPool) {
-    try {
-      const quizRes = await dbPool.query(
-        `INSERT INTO vlearn.quizzes (title, description, status) VALUES ($1, $2, 'published') RETURNING id`,
-        [lessonTitle || 'AI Quiz Active Recall', `Bài test ${count} câu - Độ khó: ${difficulty}`]
-      );
-      const quizId = quizRes.rows[0].id;
-
-      for (const q of quizList) {
-        await dbPool.query(
-          `INSERT INTO vlearn.quiz_questions (quiz_id, question_text, question_type, topic_code, options, correct_answer_index, explanation)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [quizId, q.question, q.type === 'single' ? 'multiple_choice' : 'short_answer', q.topicTag, JSON.stringify(q.options || []), q.correctAnswer || 0, q.explanation]
-        );
-      }
-    } catch (dbErr) {
-      console.error('[DB Insert Quiz Error]:', dbErr.message);
-    }
-  }
-
-  fallbackStore.quizzes.unshift({ title: lessonTitle, quiz: quizList });
-  return res.json({ success: true, mode: isAiGenerated ? 'AI Generated' : 'Smart Fallback', quiz: quizList });
 });
 
 /* ==========================================================================
-   4. TUTOR CHAT ENDPOINT: /api/tutor/chat
-   Lưu ý: endpoint này KHÔNG gọi AI (đã gỡ callGeminiApi trùng lặp). Trả lời
-   mở (open-ended Q&A) không nằm trong 3 quyết định AI mà ai-service.js đảm
-   nhận (generateQuestionBank / analyzeQuizResult / parseQuizRequestFromChat)
-   nên tạm thời chỉ trả lời bằng mẫu cố định, đánh dấu rõ grounded:false để
-   FE không hiển thị nhầm như câu trả lời AI có căn cứ thật.
+   3. QUIZ GENERATION & PERSISTENCE ENDPOINT: /api/quiz/generate
+   ========================================================================== */
+app.post('/api/quiz/generate', async (req, res) => {
+  try {
+    const {
+      sourceId,
+      questionBankId,
+      extractedText,
+      originalFilename,
+      lessonTitle,
+      count = 4,
+      difficulty = 'medium',
+      difficultyMix = null,
+      apiKey
+    } = req.body;
+    const safeSourceId = requireUuid(sourceId, 'sourceId');
+    const safeCount = Math.min(10, Math.max(1, Number.parseInt(count, 10) || 4));
+    const effectiveMix = normalizeDifficultyMix(
+      difficultyMix,
+      safeCount,
+      difficulty === 'adaptive' ? 'medium' : difficulty
+    );
+
+    let bank = questionBankId
+      ? await findQuestionBank(requireUuid(questionBankId, 'questionBankId'), safeSourceId)
+      : null;
+
+    if (bank && extractedText && bank.sourceSha256 !== sourceHash(extractedText)) {
+      return res.status(409).json({
+        success: false,
+        code: 'SOURCE_MISMATCH',
+        error: 'Question bank không thuộc nội dung PDF hiện tại. Hãy tải lại PDF để tạo bộ câu hỏi mới.'
+      });
+    }
+
+    let savedToDb = false;
+    if (!bank || bank.questionCount !== safeCount || !sameDifficultyMix(bank.difficultyMix, effectiveMix)) {
+      const questions = await generateQuestionsForSource({
+        lessonTitle,
+        extractedText,
+        count: safeCount,
+        difficultyMix: effectiveMix,
+        apiKey
+      });
+      bank = {
+        id: crypto.randomUUID(),
+        sourceId: safeSourceId,
+        lessonTitle: String(lessonTitle || originalFilename || 'Tài liệu PDF').trim(),
+        originalFilename: String(originalFilename || 'document.pdf').trim(),
+        sourceSha256: sourceHash(extractedText),
+        questionCount: questions.length,
+        difficultyMix: effectiveMix,
+        questions,
+        modelName: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
+        createdAt: new Date().toISOString()
+      };
+      savedToDb = await persistQuestionBank(bank);
+    }
+
+    fallbackStore.quizzes.unshift({
+      title: bank.lessonTitle,
+      sourceId: bank.sourceId,
+      questionBankId: bank.id,
+      quiz: bank.questions
+    });
+    return res.json({
+      success: true,
+      mode: 'AI Question Bank',
+      sourceId: bank.sourceId,
+      questionBankId: bank.id,
+      savedToDb,
+      difficultyMix: bank.difficultyMix,
+      quiz: bank.questions
+    });
+  } catch (error) {
+    console.error('[Quiz Generation Error]:', error.message);
+    return res.status(error.statusCode || 502).json({
+      success: false,
+      code: 'QUIZ_GENERATION_FAILED',
+      error: error.message
+    });
+  }
+});
+
+/* ==========================================================================
+   4. AI TUTOR CHAT ENDPOINT: /api/tutor/chat
    ========================================================================== */
 app.post('/api/tutor/chat', async (req, res) => {
-  const { query, lessonTitle } = req.body;
+  const { query, lessonText, lessonTitle, apiKey } = req.body;
 
   if (!query) {
     return res.status(400).json({ error: 'Nội dung câu hỏi không được để trống' });
+  }
+
+  try {
+    if (process.env.GEMINI_API_KEY || apiKey) {
+      const systemInstruction = `Bạn là Trợ lý AI Tutor trên nền tảng VLearn.
+Nhiệm vụ của bạn là trả lời thắc mắc của học viên dựa TRỰC TIẾP vào tài liệu bài giảng được cung cấp.
+NGUYÊN TẮC HAX/PAIR BẮT BUỘC:
+1. Mọi câu trả lời PHẢI có trích dẫn số trang [Trang N] từ bài giảng.
+2. Khi gặp câu hỏi nằm NGOÀI nội dung bài giảng, trả lời rõ ràng: "Nội dung này không nằm trong bài lý thuyết [Tên bài]. Bạn có muốn nối máy tới TA?"
+3. Tuyệt đối KHÔNG bịa đặt đáp án khi tài liệu không có thông tin (Grounding Guardrail).
+4. Nếu học viên yêu cầu sửa điểm bài quiz hoặc truy cập bài test chính thức -> Trả lời từ chối theo thẩm quyền: "Mình chỉ hỗ trợ giải đáp Active Recall, không có thẩm quyền truy cập hay thay đổi điểm bài test chính thức."`;
+
+      const prompt = `Bài giảng: ${lessonTitle || 'Bài lý thuyết VLearn'}
+Nội dung bài giảng PDF:
+"""
+${(lessonText || '').substring(0, 10000)}
+"""
+
+Câu hỏi của học viên: "${query}"`;
+
+      const aiReply = await callGeminiApi(prompt, systemInstruction, apiKey);
+      return res.json({ success: true, reply: aiReply, grounded: true });
+    }
+  } catch (err) {
+    console.warn('[AI Tutor Fallback Triggered]:', err.message);
   }
 
   const fallbackReply = generateFallbackChatReply(query, lessonTitle);
@@ -236,7 +719,14 @@ app.post('/api/tutor/chat', async (req, res) => {
    5. QUIZ SUBMISSION & ATTEMPT PERSISTENCE: /api/quiz/submit
    ========================================================================== */
 app.post('/api/quiz/submit', async (req, res) => {
-  const { answers = {}, activeQuiz = [], lessonTitle = 'Bài học VLearn', difficulty = 'Trung bình' } = req.body;
+  const {
+    answers = {},
+    activeQuiz = [],
+    lessonTitle = 'Bài học VLearn',
+    difficulty = 'Trung bình',
+    history = [],
+    apiKey
+  } = req.body;
 
   const total = activeQuiz.length;
   let correctCount = 0;
@@ -261,8 +751,13 @@ app.post('/api/quiz/submit', async (req, res) => {
 
     return {
       id: q.id,
+      question: q.question,
+      difficulty: q.difficulty || difficulty,
+      topicTag: q.topicTag || 'general',
+      citation: q.citation || '',
       isCorrect,
-      explanation: q.explanation
+      explanationCorrect: q.explanationCorrect || q.explanation || '',
+      explanationIncorrect: q.explanationIncorrect || ''
     };
   });
 
@@ -279,6 +774,63 @@ app.post('/api/quiz/submit', async (req, res) => {
     scorePct: scorePct,
     missedTopics: missedTopics
   };
+
+  const analysisHistory = [attemptRecord, ...(Array.isArray(history) ? history : [])].slice(0, 10);
+  let adaptiveAnalysis = null;
+  let analysisMode = 'Rule-based Fallback';
+
+  try {
+    if (process.env.GEMINI_API_KEY || apiKey) {
+      const analysisSystemInstruction = `Bạn là chuyên gia học tập thích ứng của VLearn.
+Hãy phân tích lịch sử làm quiz và kết quả chi tiết của lượt mới nhất.
+Không gắn nhãn tiêu cực cho học viên. Chỉ kết luận trong phạm vi dữ liệu được cung cấp.
+Phải trả về JSON duy nhất, không markdown. nextMix phải có ba khóa easy/medium/hard và tổng đúng bằng số câu của bài tiếp theo.`;
+
+      const analysisPrompt = `Bài học: ${lessonTitle}
+Số câu bài tiếp theo: ${total}
+
+LỊCH SỬ GẦN ĐÂY:
+${JSON.stringify(analysisHistory, null, 2)}
+
+KẾT QUẢ TỪNG CÂU LƯỢT MỚI NHẤT:
+${JSON.stringify(evaluatedQuestions, null, 2)}
+
+Hãy:
+1. Xác định tối đa 3 weakTopics dựa trên câu sai và lịch sử.
+2. Viết summary 3-5 câu, nêu điểm mạnh, điểm cần cải thiện và mức độ chắc chắn.
+3. Xác định performanceTrend: "improving", "declining", "stable" hoặc "insufficient_data".
+4. Đề xuất nextMix. Điểm cao/xu hướng tăng thì tăng hard; điểm thấp hoặc giảm thì tăng easy; còn lại ưu tiên medium.
+5. Viết reasoning 2-4 câu giải thích rõ vì sao tăng/giảm từng mức.
+
+Schema:
+{
+  "weakTopics": [string],
+  "summary": string,
+  "performanceTrend": "improving" | "declining" | "stable" | "insufficient_data",
+  "reasoning": string,
+  "nextMix": { "easy": number, "medium": number, "hard": number }
+}`;
+
+      const analysisResponse = await callGeminiApi(
+        analysisPrompt,
+        analysisSystemInstruction,
+        apiKey
+      );
+      adaptiveAnalysis = JSON.parse(cleanGeminiJson(analysisResponse));
+      adaptiveAnalysis.nextMix = normalizeDifficultyMix(
+        adaptiveAnalysis.nextMix,
+        total,
+        'medium'
+      );
+      analysisMode = 'AI Generated';
+    }
+  } catch (analysisErr) {
+    console.warn('[AI Adaptive Analysis Fallback Triggered]:', analysisErr.message);
+  }
+
+  if (!adaptiveAnalysis) {
+    adaptiveAnalysis = buildFallbackAdaptiveAnalysis(analysisHistory, total);
+  }
 
   // Record in PostgreSQL Database (quiz_attempts & student_knowledge_gaps)
   if (isDbConnected && dbPool) {
@@ -310,7 +862,9 @@ app.post('/api/quiz/submit', async (req, res) => {
   return res.json({
     success: true,
     attempt: attemptRecord,
-    evaluatedQuestions
+    evaluatedQuestions,
+    analysis: adaptiveAnalysis,
+    analysisMode
   });
 });
 
@@ -412,43 +966,6 @@ app.post('/api/admin/guardrails', async (req, res) => {
 /* ==========================================================================
    FALLBACK HELPER GENERATORS
    ========================================================================== */
-function generateSmartFallbackQuiz(lessonTitle, count, difficulty) {
-  const topicMap = ["jtbd", "grounding", "automation", "eval"];
-  const list = [];
-
-  for (let i = 1; i <= count; i++) {
-    const topic = topicMap[(i - 1) % topicMap.length];
-    if (i % 2 === 1) {
-      list.push({
-        id: i,
-        type: "single",
-        topicTag: topic,
-        question: `[${lessonTitle || 'Bài kiểm tra'} - Câu ${i}] Theo khung tư duy AI Product, yếu tố nào quyết định tính minh bạch của mô hình?`,
-        options: [
-          `A. Bắt buộc có trích dẫn nguồn bài giảng [Trang ${i}] và kiểm soát cost-of-error`,
-          `B. Tự động dự đoán khi chưa có tài liệu chứng minh`,
-          `C. Bỏ qua kiểm tra grounding và kiểm thử golden set`,
-          `D. Tự động thay đổi thang điểm đánh giá bài thi`
-        ],
-        correctAnswer: 0,
-        explanation: `Theo chuẩn VLearn AI Product [Trang ${i}], phương án A đúng vì bài kiểm tra Active Recall bắt buộc phải trích dẫn rõ căn cứ bài giảng.`
-      });
-    } else {
-      list.push({
-        id: i,
-        type: "short_answer",
-        topicTag: topic,
-        question: `[Tự luận ngắn - Câu ${i}] Trình bày ngắn gọn lợi ích của việc xác định Cost-of-error trước khi chọn mức độ Automation?`,
-        modelAnswer: `Xác định Cost-of-error giúp quyết định chọn giữa Augment (con người kiểm soát khi rủi ro cao) hay Automate (tự động hóa hoàn toàn).`,
-        keywords: ["cost-of-error", "augment", "automate", "chi phí", "rủi ro"],
-        explanation: `Xem thêm chi tiết lý thuyết tại [Trang ${i}]. Chi phí sai sót cao yêu cầu Human-in-the-loop để tránh thiệt hại.`
-      });
-    }
-  }
-
-  return list;
-}
-
 function generateFallbackChatReply(query, lessonTitle) {
   const qLower = query.toLowerCase();
   if (qLower.includes("lỗ hổng") || qLower.includes("ôn tập") || qLower.includes("kết quả")) {
