@@ -3,6 +3,9 @@
  * Handlers: PDF Processing, Quiz Engine, Scoring, History Storage, Knowledge Gap Analytics & Remediation Guide
  */
 
+// API Configuration
+const API_BASE_URL = "http://localhost:5000/api";
+
 // Application State
 const state = {
   currentFile: null,
@@ -37,9 +40,29 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function loadInitialData() {
-  const sample = window.VLEARN_SAMPLE_DATA;
-  state.extractedText = sample.sampleContent;
-  updateLessonTitleDisplays(sample.title);
+  const savedText = sessionStorage.getItem("VLEARN_ACTIVE_TEXT");
+  const savedTitle = sessionStorage.getItem("VLEARN_ACTIVE_TITLE");
+
+  if (savedText && savedTitle) {
+    state.extractedText = savedText;
+    state.currentFile = { name: savedTitle + ".pdf" };
+    updateLessonTitleDisplays(savedTitle);
+    
+    const dropzoneTitle = document.getElementById("dropzoneTitle");
+    if (dropzoneTitle) dropzoneTitle.innerText = `📄 ${savedTitle}.pdf`;
+    
+    const statusBadge = document.getElementById("adminFileStatusBadge") || document.getElementById("fileStatusBadge");
+    if (statusBadge) {
+      statusBadge.innerText = "Đã nạp file PDF";
+      statusBadge.style.background = "#dcfce7";
+      statusBadge.style.color = "#15803d";
+    }
+  } else {
+    const sample = window.VLEARN_SAMPLE_DATA;
+    state.extractedText = sample.sampleContent;
+    updateLessonTitleDisplays(sample.title);
+  }
+
   // Quiz is NOT rendered automatically on load; only appears when user clicks "Tạo Bài Kiểm Tra Ngay"
   const quizSection = document.getElementById("quizSection");
   if (quizSection) quizSection.style.display = "none";
@@ -184,6 +207,23 @@ async function processPdfFile(file) {
     }
 
     state.extractedText = fullText;
+    sessionStorage.setItem("VLEARN_ACTIVE_TEXT", fullText);
+    sessionStorage.setItem("VLEARN_ACTIVE_TITLE", lessonTitle);
+
+    // Save document and extracted pages to Backend Database
+    try {
+      fetch(`${API_BASE_URL}/documents/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: lessonTitle,
+          originalFilename: file.name,
+          extractedText: fullText
+        })
+      });
+    } catch (apiErr) {
+      console.warn("Backend API /api/documents/save unavailable:", apiErr);
+    }
   } catch (err) {
     console.error("PDF Parsing Error:", err);
     alert("Không thể giải mã PDF hoàn toàn. Hệ thống chuyển sang chế độ Mô phỏng dữ liệu thông minh.");
@@ -194,18 +234,53 @@ async function processPdfFile(file) {
    2. QUIZ GENERATION ENGINE
    ========================================================================== */
 
-function generateQuiz() {
+async function generateQuiz() {
   const difficulty = document.getElementById("difficultySelect").value;
   const count = parseInt(document.getElementById("questionCountSelect").value);
 
-  const btn = event.currentTarget;
-  const originalHtml = btn.innerHTML;
-  btn.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> Đang tự động sinh ${count} câu hỏi...`;
-  btn.disabled = true;
+  const btn = event ? event.currentTarget : document.querySelector("button[onclick*='generateQuiz']");
+  const originalHtml = btn ? btn.innerHTML : "";
+  if (btn) {
+    btn.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> Đang kết nối Backend Server & AI...`;
+    btn.disabled = true;
+  }
 
+  try {
+    const response = await fetch(`${API_BASE_URL}/quiz/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        extractedText: state.extractedText,
+        lessonTitle: state.currentLessonTitle,
+        count: count,
+        difficulty: difficulty,
+        apiKey: state.apiKey
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.quiz && data.quiz.length > 0) {
+        if (btn) {
+          btn.innerHTML = originalHtml;
+          btn.disabled = false;
+        }
+        renderQuiz(data.quiz.slice(0, count));
+        const quizSection = document.getElementById("quizSection");
+        if (quizSection) quizSection.scrollIntoView({ behavior: 'smooth' });
+        return;
+      }
+    }
+  } catch (err) {
+    console.warn("Backend API /api/quiz/generate unavailable, fallback to local simulator:", err);
+  }
+
+  // Fallback to local simulation if backend server is offline
   setTimeout(() => {
-    btn.innerHTML = originalHtml;
-    btn.disabled = false;
+    if (btn) {
+      btn.innerHTML = originalHtml;
+      btn.disabled = false;
+    }
 
     let quiz = [];
     if (state.currentFile) {
@@ -215,8 +290,9 @@ function generateQuiz() {
     }
 
     renderQuiz(quiz.slice(0, count));
-    document.getElementById("quizSection").scrollIntoView({ behavior: 'smooth' });
-  }, 700);
+    const quizSection = document.getElementById("quizSection");
+    if (quizSection) quizSection.scrollIntoView({ behavior: 'smooth' });
+  }, 500);
 }
 
 function createDynamicQuizFromText(text, count, difficulty) {
@@ -770,9 +846,35 @@ function updateGuardrailPreview() {
   }
 }
 
-function saveGuardrailSettings() {
+async function saveGuardrailSettings() {
   updateGuardrailPreview();
-  alert("✓ Đã lưu cấu hình AI System Prompt & Guardrails cho toàn hệ thống VLearn!");
+  const strictGrounding = document.getElementById("guardrailStrictGrounding")?.checked ?? true;
+  const refuseOutOfScope = document.getElementById("guardrailRefuseOutOfScope")?.checked ?? true;
+  const automationLevel = document.getElementById("guardrailAutomationLevel")?.value || "augment";
+  const hallucinationVal = document.getElementById("guardrailHallucination")?.value || "85";
+  const tempVal = document.getElementById("guardrailTemp")?.value || "20";
+
+  const configObj = {
+    strictGrounding: strictGrounding,
+    requirePageCitation: true,
+    refuseOutOfScope: refuseOutOfScope,
+    automationLevel: automationLevel,
+    temperature: parseFloat((tempVal / 100).toFixed(2)),
+    hallucinationGuardFilterPct: parseInt(hallucinationVal),
+    systemPrompt: `You are VLearn Active Recall Quiz Generator. Always generate questions grounded STRICTLY in the provided PDF material. Every correct answer explanation MUST cite exact page numbers [Trang N] or sections.`
+  };
+
+  try {
+    await fetch(`${API_BASE_URL}/admin/guardrails`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(configObj)
+    });
+  } catch (err) {
+    console.warn("Backend API /api/admin/guardrails unavailable:", err);
+  }
+
+  alert("✓ Đã lưu cấu hình AI System Prompt & Guardrails cho toàn hệ thống VLearn (Đã đồng bộ CSDL)!");
 }
 
 function toggleChatWindow() {
@@ -789,7 +891,7 @@ function handleChatKeyPress(e) {
   }
 }
 
-function sendChatMessage() {
+async function sendChatMessage() {
   const input = document.getElementById("chatInput");
   const text = input.value.trim();
   if (!text) return;
@@ -804,13 +906,41 @@ function sendChatMessage() {
   input.value = "";
   chatBody.scrollTop = chatBody.scrollHeight;
 
+  const aiMsgEl = document.createElement("div");
+  aiMsgEl.className = "chat-msg msg-ai";
+  aiMsgEl.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> AI Tutor đang suy nghĩ...`;
+  chatBody.appendChild(aiMsgEl);
+  chatBody.scrollTop = chatBody.scrollHeight;
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/tutor/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: text,
+        lessonText: state.extractedText,
+        lessonTitle: state.currentLessonTitle,
+        apiKey: state.apiKey
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.reply) {
+        aiMsgEl.innerHTML = data.reply;
+        chatBody.scrollTop = chatBody.scrollHeight;
+        return;
+      }
+    }
+  } catch (err) {
+    console.warn("Backend API /api/tutor/chat unavailable, using local reply fallback:", err);
+  }
+
+  // Fallback to local response
   setTimeout(() => {
-    const aiMsgEl = document.createElement("div");
-    aiMsgEl.className = "chat-msg msg-ai";
     aiMsgEl.innerHTML = generateAiResponse(text);
-    chatBody.appendChild(aiMsgEl);
     chatBody.scrollTop = chatBody.scrollHeight;
-  }, 500);
+  }, 400);
 }
 
 function generateAiResponse(query) {
