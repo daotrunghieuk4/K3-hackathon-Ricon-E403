@@ -3,7 +3,14 @@
 **SPEC → Prototype → Demo.** Đây không phải cuộc thi code — đây là cuộc thi **tư duy sản phẩm AI**.
 
 - Thời lượng: **1,5 ngày** (một ngày build + một buổi demo)
-- Nhóm: **4-5 người** · zone tối đa 5 nhóm · thi theo lớp
+- Nhóm: **Ricon-E403 — Zone 1** (Dự án: **VLearn Active Recall Quiz Generator**)
+
+## Thành viên nhóm & Phân công
+| Họ tên | Mã học viên | Vai trò & Phân công chính | Reflection File |
+|---|---|---|---|
+| **Nguyễn Trung Hiếu** | `2A202601457` | **AI Tool & Prompts**: AI Spec (`spec.md`), System Prompts (`ai-service.js`), Grounding Engine (`server.js`) | [`reflection/nguyen-trung-hieu.md`](reflection/nguyen-trung-hieu.md) |
+| **Đào Trung Hiếu** | `2A202601059` | **Test & Quality**: Golden Set 20 cases (`eval/`), Script Eval (`run_eval.ps1`), Validation Log (`validation/`) | [`reflection/dao-trung-hieu.md`](reflection/dao-trung-hieu.md) |
+| **Nguyễn Văn An** | `2A202601817` | **Frontend & UI/UX**: LMS Layout (`index.html`), Interactivity (`app.js`), Design Tokens (`styles.css`) | [`reflection/nguyen-van-an.md`](reflection/nguyen-van-an.md) |
 
 ## Bắt đầu từ đâu?
 

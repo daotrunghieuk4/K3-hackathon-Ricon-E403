@@ -95,10 +95,9 @@ Loại: [x] Tính năng mới  [ ] Tối ưu tính năng có sẵn
 
 ## §8. Phân công & kế hoạch
 - **Phân công thành viên:**
-  - `spec.md` & Evidence: Nguyễn Văn A (Leader)
-  - Codebase UI & PDF Engine: Đào Trung Hiếu (`codebase/index.html`, `app.js`, `styles.css`)
-  - Golden Set & Evaluation (`eval/`): Trần Thị B
-  - Validation User Test (`validation/`): Lê Văn C
+  - **Nguyễn Trung Hiếu** (Mã HV: **2A202601457** — **AI Tool & Prompts**): Phụ trách chính AI Spec (`spec.md`), Thiết kế Prompt Grounding & Verifier Engine (`codebase/ai-service.js`, `codebase/server.js`).
+  - **Đào Trung Hiếu** (Mã HV: **2A202601059** — **Test & Quality**): Phụ trách Golden Set & Evaluation (`eval/golden_set.json`, `eval/run_eval.ps1`), User Testing & Validation Log (`validation/user_feedback_log.md`).
+  - **Nguyễn Văn An** (Mã HV: **2A202601817** — **Frontend & UI/UX**): Phụ trách Giao diện LMS (`codebase/index.html`), Client Logic (`codebase/app.js`), Styling (`codebase/styles.css`).
 - **Willing users (≥3 người thật):**
   1. Nguyễn Hoàng Nam (HV K3)
   2. Phạm Minh Đức (HV K3)
@@ -111,3 +110,5 @@ Loại: [x] Tính năng mới  [ ] Tối ưu tính năng có sẵn
 |---|---|---|
 | N1 10:00 | Khởi tạo Spec nháp cho Hướng A VLearn | Chốt hướng sau khi mining 2.522 dòng chatlog |
 | N1 17:00 | Bổ sung 4 lớp chỗ khó & HAX Guidelines | Theo góp ý tại Checkpoint CP2 |
+| N1 20:00 | Thêm Grounding Guardrail & bộ Verifier kiểm tra trích dẫn `[Trang N]` | Tăng tỷ lệ qua Golden Set từ 75.0% (Lượt 1) lên 90.0% (Lượt 2) đạt Quality Bar |
+| N2 09:00 | Bổ sung nhãn phân biệt "Kiến thức nền ngoài slide", đếm ngược 3 phút Quiz UI & cập nhật 5 User Validation Logs | Cải tiến trực tiếp dựa trên phản hồi từ vòng User Validation (#1, #3, #5 trong `validation/user_feedback_log.md`) |
