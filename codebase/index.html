@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VLearn AI LMS - Tạo Bài Kiểm Tra & Bản Đồ Lỗ Hổng Kiến Thức</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Remix Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+  
+  <!-- PDF.js CDN for client-side PDF parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+  </script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <div class="app-container">
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div>
+        <div class="brand-header">
+          <div class="brand-icon">V</div>
+          <div class="brand-text">
+            <h2>VLearn AI</h2>
+            <span class="brand-badge">PROTOTYPE HƯỚNG A</span>
+          </div>
+        </div>
+
+        <ul class="nav-menu">
+          <li class="nav-item active" id="nav-generator" onclick="switchNav('generator')">
+            <i class="ri-quiz-line"></i>
+            <span>Tạo Quiz & Làm Bài</span>
+          </li>
+          <li class="nav-item" id="nav-analytics" onclick="switchNav('analytics')">
+            <i class="ri-bar-chart-box-line"></i>
+            <span>Bản Đồ Lỗ Hổng & Lịch Sử</span>
+          </li>
+          <li class="nav-item" onclick="openApiModal()">
+            <i class="ri-key-2-line"></i>
+            <span>Cấu Hình API Key</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="course-tag">BATCH 03 - K3 HACKATHON</div>
+        <div class="course-name">AI Product Masterclass - VLearn LMS</div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-wrapper">
+      
+      <!-- Top Navbar (Đã bỏ 2 nút Nạp Bài Mẫu & Tải PDF ở Header) -->
+      <header class="top-header">
+        <div class="header-title">
+          <h1 id="currentViewTitle">Hệ Thống Tạo Bài Kiểm Tra AI Cho VLearn</h1>
+          <p class="header-subtitle" id="currentViewSubtitle">Tự động đọc tài liệu PDF, sinh quiz kiểm tra Active Recall & theo dõi lịch sử hổng kiến thức</p>
+        </div>
+        <div class="header-actions">
+          <span class="pill" style="background:var(--primary-light); color:var(--primary); font-weight:600;" id="activeLessonBadge">
+            <i class="ri-book-read-line"></i> Bài 01: Nhập môn AI Product (JTBD)
+          </span>
+        </div>
+      </header>
+
+      <!-- Content Container -->
+      <div class="content-container">
+
+        <!-- VIEW 1: TAB TẠO QUIZ & LÀM BÀI -->
+        <div id="view-generator" class="tab-view active">
+          
+          <!-- Welcome Hero Banner -->
+          <section class="welcome-banner">
+            <div class="banner-content">
+              <h2>Active Recall Quiz & Phân Tích Lỗ Hổng Kiến Thức</h2>
+              <p>Tải lên PDF bài giảng hoặc sử dụng dữ liệu bài học sẵn có để tự động sinh bộ bài kiểm tra trắc nghiệm / tự luận. Kết quả làm bài sẽ được lưu lịch sử và phân tích lỗ hổng kiến thức để hướng dẫn ôn tập.</p>
+              <div class="banner-pills">
+                <span class="pill"><i class="ri-check-line"></i> Trích dẫn trang [Txx-NNN]</span>
+                <span class="pill"><i class="ri-history-line"></i> Tự động Lưu Lịch Sử Kết Quả</span>
+                <span class="pill"><i class="ri-compass-3-line"></i> Hướng Dẫn Ôn Tập Cá Nhân Hóa</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Grid 2-Columns: Upload PDF Dropzone & Quiz Config -->
+          <div class="grid-2col" style="margin-top: 1.5rem;">
+            
+            <!-- Dropzone Card -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <i class="ri-file-pdf-fill"></i> Tải Lên File PDF Lý Thuyết
+                </div>
+                <span class="pill" style="background:#f1f5f9; color:#475569;" id="fileStatusBadge">Đã sẵn sàng PDF bài mẫu</span>
+              </div>
+              
+              <div class="dropzone" id="pdfDropzone" onclick="triggerFileUpload()">
+                <div class="dropzone-icon">
+                  <i class="ri-upload-cloud-2-line"></i>
+                </div>
+                <h4 id="dropzoneTitle">Nhấp vào đây hoặc kéo thả file PDF bài lý thuyết vào</h4>
+                <p id="dropzoneSubtitle">Hỗ trợ PDF slide bài giảng, transcript (Tối đa 25MB)</p>
+                <input type="file" id="pdfFileInput" class="file-input" accept=".pdf" onchange="handleFileSelect(event)">
+              </div>
+            </div>
+
+            <!-- Quiz Config Card -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <i class="ri-settings-4-line"></i> Cấu Hình & Sinh Bài Kiểm Tra
+                </div>
+              </div>
+              
+              <div class="quiz-controls">
+                <div class="form-group">
+                  <label class="form-label">Mức độ khó của bài test</label>
+                  <select id="difficultySelect" class="form-select">
+                    <option value="medium">Trung bình (Hiểu & Vận dụng khái niệm)</option>
+                    <option value="easy">Cơ bản (Nhận biết định nghĩa & Thuật ngữ)</option>
+                    <option value="hard">Nâng cao (Phân tích case study & Cost-of-error)</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Số lượng câu hỏi</label>
+                  <select id="questionCountSelect" class="form-select">
+                    <option value="4">4 câu (Bài test nhanh - 5 phút)</option>
+                    <option value="6">6 câu (Bài test tổng hợp)</option>
+                    <option value="10">10 câu (Bài test chuyên sâu)</option>
+                  </select>
+                </div>
+
+                <button class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 0.5rem;" onclick="generateQuiz()">
+                  <i class="ri-magic-line"></i> Tạo Bài Kiểm Tra Ngay
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Section: Interactive Quiz Form -->
+          <section class="quiz-section" id="quizSection" style="margin-top: 1.5rem;">
+            
+            <div class="quiz-header-bar">
+              <div>
+                <h3 style="font-size: 1.15rem; font-weight: 700;">Bài Kiểm Tra Active Recall</h3>
+                <p style="font-size: 0.83rem; color: var(--text-muted);">Hãy chọn câu trả lời để đánh giá mức độ hiểu bài. Kết quả sẽ được lưu tự động vào Lịch sử.</p>
+              </div>
+              <div class="quiz-progress">
+                <span style="font-size: 0.85rem; font-weight: 600;" id="progressText">0 / 4 câu</span>
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill" id="progressBarFill"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dynamic Questions Container -->
+            <div id="questionsContainer">
+              <!-- Questions rendered by JS -->
+            </div>
+
+            <!-- Submit Quiz Action -->
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;" id="quizActionButtons">
+              <button class="btn btn-secondary" onclick="resetQuiz()">Làm lại bài</button>
+              <button class="btn btn-primary" onclick="submitQuiz()">
+                <i class="ri-check-double-line"></i> Nộp Bài & Lưu Kết Quả
+              </button>
+            </div>
+
+            <!-- Quiz Result Display -->
+            <div class="result-card" id="resultCard">
+              <div class="score-circle">
+                <span class="score-number" id="finalScoreDisplay">100%</span>
+                <span class="score-label">Điểm số</span>
+              </div>
+              <h3 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 0.5rem;" id="resultFeedbackTitle">Xuất sắc! Bạn đã nắm vững kiến thức</h3>
+              <p style="color: var(--text-muted); max-width: 600px; margin: 0 auto 1.25rem auto;" id="resultFeedbackDesc">
+                Kết quả đã được tự động lưu vào Lịch sử & Phân tích lỗ hổng kiến thức.
+              </p>
+              <div style="display:flex; justify-center; gap:1rem; flex-wrap:wrap;">
+                <button class="btn btn-secondary" onclick="switchNav('analytics')">
+                  <i class="ri-bar-chart-box-line"></i> Xem Bản Đồ Lỗ Hổng & Hướng Dẫn Ôn Tập
+                </button>
+                <button class="btn btn-primary" onclick="resetQuiz()">
+                  <i class="ri-refresh-line"></i> Luyện Tập Lần Khác
+                </button>
+              </div>
+            </div>
+
+          </section>
+
+        </div>
+
+        <!-- VIEW 2: TAB BẢN ĐỒ LỖ HỔNG & LỊCH SỬ ÔN TẬP -->
+        <div id="view-analytics" class="tab-view" style="display: none;">
+          
+          <div class="grid-2col">
+            <!-- Knowledge Gap Map Overview -->
+            <div class="card" style="grid-column: span 2;">
+              <div class="card-header">
+                <div class="card-title">
+                  <i class="ri-radar-line" style="color:var(--primary)"></i> Bản Đồ Phân Tích Lỗ Hổng Kiến Thức
+                </div>
+                <button class="btn btn-secondary" style="font-size:0.8rem; padding:0.4rem 0.8rem;" onclick="clearHistory()">
+                  <i class="ri-delete-bin-line"></i> Xóa Lịch Sử
+                </button>
+              </div>
+              <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+                Hệ thống tự động tổng hợp tỷ lệ làm sai theo từng chủ đề dựa trên lịch sử các lần nộp bài quiz của bạn:
+              </p>
+
+              <!-- Dynamic Gap Progress List -->
+              <div id="gapTopicsContainer" class="gap-topics-grid">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Study Guidance / AI Remediation Recommendation Card -->
+          <div class="card" style="margin-top: 1.5rem; background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border-left: 5px solid var(--primary);">
+            <div class="card-header">
+              <div class="card-title">
+                <i class="ri-compass-3-fill" style="color:var(--secondary)"></i> Hướng Dẫn & Lộ Trình Ôn Tập Cá Nhân Hóa
+              </div>
+              <span class="pill" style="background:var(--accent-light); color:var(--accent); font-weight:700;">AI Actionable Advice</span>
+            </div>
+            
+            <div id="remediationGuideContainer" style="display: flex; flex-direction: column; gap: 0.85rem;">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Quiz Attempt History Table -->
+          <div class="card" style="margin-top: 1.5rem;">
+            <div class="card-header">
+              <div class="card-title">
+                <i class="ri-history-line"></i> Lịch Sử Kết Quả Các Lần Làm Bài
+              </div>
+              <span class="pill" style="background:#f1f5f9;" id="attemptCountBadge">0 lần làm bài</span>
+            </div>
+
+            <div style="overflow-x: auto; margin-top: 0.5rem;">
+              <table class="history-table" id="historyTable">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Thời Gian</th>
+                    <th>Tên Bài Lý Thuyết</th>
+                    <th>Độ Khó</th>
+                    <th>Số Câu Đúng</th>
+                    <th>Điểm Số</th>
+                    <th>Trạng Thái</th>
+                  </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <!-- Floating AI Tutor Chatbot Widget -->
+  <button class="chat-widget-btn" onclick="toggleChatWindow()" title="Hỏi AI Tutor VLearn">
+    <i class="ri-question-answer-fill"></i>
+  </button>
+
+  <div class="chat-window" id="chatWindow">
+    <div class="chat-header">
+      <div class="chat-header-info">
+        <div class="avatar-ai">AI</div>
+        <div>
+          <h4 style="font-size: 0.9rem; font-weight: 700;">AI Tutor VLearn</h4>
+          <span style="font-size: 0.72rem; color: #a5b4fc;">● Hỗ trợ giải đáp & Ôn tập</span>
+        </div>
+      </div>
+      <i class="ri-close-line" style="cursor: pointer; font-size: 1.2rem;" onclick="toggleChatWindow()"></i>
+    </div>
+
+    <div class="chat-body" id="chatBody">
+      <div class="chat-msg msg-ai">
+        Xin chào! Mình là AI Tutor VLearn. Bạn có thắc mắc gì về bài lý thuyết này, kết quả quiz vừa làm hay cần hướng dẫn ôn tập lại lỗ hổng kiến thức không?
+      </div>
+    </div>
+
+    <div class="chat-footer">
+      <input type="text" id="chatInput" class="chat-input" placeholder="Hỏi AI Tutor về bài giảng..." onkeypress="handleChatKeyPress(event)">
+      <button class="chat-send-btn" onclick="sendChatMessage()">
+        <i class="ri-send-plane-fill"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- API Key Modal Settings -->
+  <div id="apiModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); backdrop-filter:blur(4px); z-index:2000; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:var(--radius-md); padding:2rem; width:90%; max-width:480px; box-shadow:var(--shadow-lg);">
+      <h3 style="font-size:1.2rem; font-weight:700; margin-bottom:0.75rem;">Cấu Hình Gemini API Key (Tùy Chọn)</h3>
+      <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1.25rem;">
+        Hệ thống tích hợp sẵn Bộ sinh Smart Generator mô phỏng offline cực mượt. Nếu bạn muốn kết nối trực tiếp với LLM Google Gemini thật, hãy điền API Key vào bên dưới.
+      </p>
+      <div class="form-group">
+        <label class="form-label">Gemini API Key</label>
+        <input type="password" id="geminiApiKeyInput" class="form-input" placeholder="AIzaSy...">
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.5rem;">
+        <button class="btn btn-secondary" onclick="closeApiModal()">Đóng</button>
+        <button class="btn btn-primary" onclick="saveApiKey()">Lưu Cấu Hình</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script Declarations -->
+  <script src="sample_data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

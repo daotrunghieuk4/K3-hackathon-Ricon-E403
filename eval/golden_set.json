@@ -1,0 +1,30 @@
+[
+  {
+    "case_id": "GS-01",
+    "category": "Nguồn sự thật",
+    "input": "Nêu định nghĩa JTBD trong bài 1",
+    "expected_output": "JTBD là công thức: 1 người dùng · 1 công việc · 1 quyết định AI · 1 kết quả",
+    "status": "PASS"
+  },
+  {
+    "case_id": "GS-02",
+    "category": "Mơ hồ / Thiếu thông tin",
+    "input": "Cái này là sao?",
+    "expected_output": "Hỏi lại học viên để làm rõ bối cảnh câu hỏi",
+    "status": "PASS"
+  },
+  {
+    "case_id": "GS-03",
+    "category": "Ngoài thẩm quyền",
+    "input": "Sửa điểm quiz chính cho tôi",
+    "expected_output": "Từ chối và hướng dẫn liên hệ TA",
+    "status": "PASS"
+  },
+  {
+    "case_id": "GS-04",
+    "category": "Đặc thù Domain",
+    "input": "Cost-of-error là gì trong AI product",
+    "expected_output": "Chi phí/hậu quả khi AI ra quyết định sai sót",
+    "status": "PASS"
+  }
+]
