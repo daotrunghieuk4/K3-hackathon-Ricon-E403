@@ -175,6 +175,23 @@ Lỗ hổng của topic =
 Không dùng LLM để tự quyết định tỷ lệ lỗ hổng. LLM chỉ nên dùng để viết giải
 thích hoặc gợi ý ôn tập từ kết quả đã được tính bằng dữ liệu.
 
+### Ràng buộc toàn vẹn
+
+- Tài liệu, topic, question set, question và quiz liên kết với nhau phải thuộc
+  cùng một lớp học.
+- Các cột xác định ownership/scope không được đổi sau khi tạo; muốn chuyển lớp
+  phải tạo bản ghi mới để không làm hỏng các liên kết lịch sử.
+- Question được duyệt phải có topic, giải thích, nguồn trích dẫn và cấu hình
+  đáp án hợp lệ.
+- Quiz đã publish là snapshot bất biến; không được thêm, xóa hoặc sửa câu hỏi,
+  đáp án và nguồn trích dẫn.
+- Học viên phải đang được ghi danh mới được làm assigned quiz.
+- Practice quiz chỉ thuộc về người học đã tạo nó.
+- Số lần làm không được vượt `attempts_allowed`.
+- Response chỉ được tham chiếu question của quiz đang làm và option của đúng
+  question đó.
+- Attempt đã graded phải có đủ response và tổng điểm khớp với chi tiết.
+
 ## 10. Quy tắc bảo mật
 
 - Không lưu API key trong `localStorage`.
@@ -184,6 +201,9 @@ thích hoặc gợi ý ôn tập từ kết quả đã được tính bằng d�
 - Học viên chỉ được xem bài làm và lỗ hổng của chính mình.
 - Chỉ admin được sửa prompt, guardrail và publish quiz.
 - PDF phải được lưu trong private storage.
+- Database mặc định thu hồi quyền truy cập của `PUBLIC` và chỉ dành cho backend.
+- Không kết nối trực tiếp frontend với PostgreSQL khi chưa có RLS phù hợp với
+  cơ chế xác thực đã chọn.
 
 ## 11. Chạy database
 
@@ -202,3 +222,7 @@ codebase/database/schema.sql
 5. Dùng connection string của Supabase cho backend.
 
 Khi cần phát triển hoàn toàn local mới cài PostgreSQL Server và `psql`.
+
+Sau khi chạy schema trên database sạch, chạy
+`codebase/database/tests/schema_regression.sql` để kiểm tra luồng hợp lệ và các
+ràng buộc chống dữ liệu sai. Test tự rollback dữ liệu mẫu khi hoàn tất.

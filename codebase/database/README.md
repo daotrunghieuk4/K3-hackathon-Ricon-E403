@@ -31,6 +31,17 @@
 - Generate a new `document_versions` row when a PDF changes so existing
   question citations remain reproducible.
 - `ai_runs` is the trace used for prompt/model evaluation and debugging.
+- Keep classroom/document/topic/question references in the same classroom.
+  The schema rejects cross-class links.
+- Build and approve a complete question (topic, explanation, source and valid
+  options) before attaching it to a quiz.
+- Treat published quizzes as immutable assessment snapshots. Create a new
+  draft instead of modifying published questions, options, sources or quiz
+  composition.
+- Create attempts sequentially. The database enforces enrollment, quiz time
+  window and `attempts_allowed`.
+- Retain quiz attempts for audit. Archive or deactivate parent entities instead
+  of deleting assessment history.
 
 ## Install PostgreSQL and `psql` on Windows
 
@@ -110,7 +121,35 @@ Inside the `psql` terminal:
 \q
 ```
 
-The schema intentionally does not include authentication-specific Row-Level
-Security policies yet. Add those when the backend authentication mechanism is
-chosen, because Supabase `auth.uid()`, a custom JWT subject, and a server-side
-session require different policies.
+## Run the regression tests
+
+Run tests against a fresh database immediately after `schema.sql`:
+
+```powershell
+psql `
+  --host localhost `
+  --port 5432 `
+  --username postgres `
+  --dbname vlearn `
+  --set ON_ERROR_STOP=1 `
+  --file .\codebase\database\tests\schema_regression.sql
+```
+
+The test runs a valid end-to-end database flow and verifies that invalid
+cross-class, role, attempt, grading and published-snapshot mutations are
+rejected. It rolls back its fixture data when finished.
+
+## Security boundary
+
+`schema.sql` revokes implicit `PUBLIC` access to the schema, tables and
+sequences. Use a backend service with a dedicated, least-privilege database
+role; do not connect this database directly from browser JavaScript.
+
+Authentication-specific Row-Level Security policies are intentionally not
+guessed here. Add policies before exposing the schema through Supabase Data API
+or another direct-to-client data layer, because Supabase `auth.uid()`, a custom
+JWT subject and a server-side session require different policy definitions.
+
+This file is a fresh-install schema, not an idempotent migration. If the earlier
+development schema was already applied and contains no data that must be kept,
+recreate that development database before running this version.
