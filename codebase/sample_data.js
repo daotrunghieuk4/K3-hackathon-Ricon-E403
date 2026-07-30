@@ -84,5 +84,40 @@ Xây dựng Golden set tối thiểu 20 cases phủ đủ các đường đi tr�
       modelAnswer: "Ghi nhận trung thực kết quả chạy trọn bộ Golden Set (kể cả các case chưa đạt), kèm bảng phần trăm đối chiếu với Quality Bar đã cam kết.",
       explanation: "Theo Rubric R4, kết quả đo cần ghi nhận trung thực (dù chưa đạt Quality bar vẫn tính điểm). Báo cáo số liệu chỉnh sửa sẽ bị 0 điểm."
     }
-  ]
+  ],
+
+  // Admin Workspace Data Models
+  adminMetrics: {
+    totalStudents: 1024,
+    totalQuizzesGenerated: 15420,
+    classAverageScore: 78.5,
+    atRiskStudentsCount: 146,
+    topicGapDistribution: [
+      { id: "automation", name: "Cost-of-error & Automation Level", gapPct: 38, count: 389 },
+      { id: "eval", name: "Golden Set & Quality Bar", gapPct: 29, count: 296 },
+      { id: "grounding", name: "Grounding & Chống Bịa Nguồn", gapPct: 18, count: 184 },
+      { id: "jtbd", name: "JTBD & Lát Cắt Sản Phẩm", gapPct: 15, count: 155 }
+    ]
+  },
+
+  studentsList: [
+    { id: "HV-842", name: "Học viên HV-842", class: "AI-K3 Zone 1", lastActive: "10 phút trước", attempts: 5, avgScore: 92, riskStatus: "safe", riskTopic: "Không có", missedTopics: [] },
+    { id: "HV-109", name: "Phạm Minh Đức", class: "AI-K3 Zone 1", lastActive: "25 phút trước", attempts: 4, avgScore: 65, riskStatus: "warning", riskTopic: "Cost-of-error & Automation", missedTopics: ["automation"] },
+    { id: "HV-312", name: "Trần Bảo Ngọc", class: "AI-K3 Zone 1", lastActive: "1 giờ trước", attempts: 6, avgScore: 88, riskStatus: "safe", riskTopic: "Không có", missedTopics: [] },
+    { id: "HV-551", name: "Lê Hoàng Nam", class: "AI-K3 Zone 2", lastActive: "3 giờ trước", attempts: 2, avgScore: 50, riskStatus: "danger", riskTopic: "Golden Set & Eval", missedTopics: ["eval", "automation"] },
+    { id: "HV-763", name: "Đặng Thu Thảo", class: "AI-K3 Zone 1", lastActive: "5 giờ trước", attempts: 3, avgScore: 75, riskStatus: "safe", riskTopic: "Grounding Nguồn", missedTopics: ["grounding"] },
+    { id: "HV-901", name: "Vũ Quốc Anh", class: "AI-K3 Zone 2", lastActive: "Hôm qua", attempts: 1, avgScore: 40, riskStatus: "danger", riskTopic: "JTBD & Cost-of-error", missedTopics: ["jtbd", "automation"] },
+    { id: "HV-618", name: "Bùi Thị Mai", class: "AI-K3 Zone 1", lastActive: "Hôm qua", attempts: 7, avgScore: 95, riskStatus: "safe", riskTopic: "Không có", missedTopics: [] },
+    { id: "HV-425", name: "Ngô Thanh Tùng", class: "AI-K3 Zone 2", lastActive: "2 ngày trước", attempts: 3, avgScore: 58, riskStatus: "warning", riskTopic: "Golden Set & Grounding", missedTopics: ["eval", "grounding"] }
+  ],
+
+  guardrails: {
+    strictGrounding: true,
+    requirePageCitation: true,
+    refuseOutOfScope: true,
+    automationLevel: "augment",
+    temperature: 0.2,
+    hallucinationThreshold: 0.85,
+    systemPrompt: `You are VLearn Active Recall Quiz Generator. Always generate questions grounded STRICTLY in the provided PDF material. Every correct answer explanation MUST cite exact page numbers [Trang N] or sections.`
+  }
 };
