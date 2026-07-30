@@ -234,6 +234,23 @@ async function processPdfFile(file) {
    2. QUIZ GENERATION ENGINE
    ========================================================================== */
 
+// Chuyển output của VLearnAI.generateQuestionBank() (difficulty/correctIndex/
+// explanationCorrect/explanationIncorrect/citation) sang khuôn dạng mà
+// renderQuiz()/submitQuiz() hiểu (id/type/correctAnswer/explanation...).
+function mapAiQuestionsForUi(aiQuestions) {
+  return aiQuestions.map((q, idx) => ({
+    id: idx + 1,
+    type: "single",
+    difficulty: q.difficulty,
+    citation: q.citation,
+    question: q.question,
+    options: q.options,
+    correctAnswer: q.correctIndex,
+    explanation: q.explanationCorrect,
+    explanationIncorrect: q.explanationIncorrect
+  }));
+}
+
 async function generateQuiz() {
   const difficulty = document.getElementById("difficultySelect").value;
   const count = parseInt(document.getElementById("questionCountSelect").value);
@@ -241,58 +258,52 @@ async function generateQuiz() {
   const btn = event ? event.currentTarget : document.querySelector("button[onclick*='generateQuiz']");
   const originalHtml = btn ? btn.innerHTML : "";
   if (btn) {
-    btn.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> Đang kết nối Backend Server & AI...`;
+    btn.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> AI đang đọc tài liệu và sinh câu hỏi...`;
     btn.disabled = true;
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/quiz/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        extractedText: state.extractedText,
-        lessonTitle: state.currentLessonTitle,
-        count: count,
-        difficulty: difficulty,
-        apiKey: state.apiKey
-      })
-    });
+    const perDifficulty = Math.max(1, Math.ceil(count / 3));
+    const { questions, skippedTopics } = await window.VLearnAI.generateQuestionBank(
+      state.currentLessonTitle,
+      state.extractedText,
+      perDifficulty
+    );
 
-    if (response.ok) {
-      const data = await response.json();
-      if (data.quiz && data.quiz.length > 0) {
-        if (btn) {
-          btn.innerHTML = originalHtml;
-          btn.disabled = false;
-        }
-        renderQuiz(data.quiz.slice(0, count));
-        const quizSection = document.getElementById("quizSection");
-        if (quizSection) quizSection.scrollIntoView({ behavior: 'smooth' });
-        return;
+    if (skippedTopics && skippedTopics.length > 0) {
+      console.warn("AI báo thiếu căn cứ cho một số mức độ (không bịa câu hỏi):", skippedTopics);
+    }
+
+    if (questions && questions.length > 0) {
+      if (btn) {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
       }
+      renderQuiz(mapAiQuestionsForUi(questions).slice(0, count));
+      const quizSection = document.getElementById("quizSection");
+      if (quizSection) quizSection.scrollIntoView({ behavior: 'smooth' });
+      return;
     }
   } catch (err) {
-    console.warn("Backend API /api/quiz/generate unavailable, fallback to local simulator:", err);
+    console.warn("VLearnAI.generateQuestionBank lỗi (thiếu API key, lỗi mạng...), dùng bộ mô phỏng cục bộ:", err);
   }
 
-  // Fallback to local simulation if backend server is offline
-  setTimeout(() => {
-    if (btn) {
-      btn.innerHTML = originalHtml;
-      btn.disabled = false;
-    }
+  // Fallback cục bộ khi AI thật không gọi được — KHÔNG phải AI, chỉ để demo không bị chặn
+  if (btn) {
+    btn.innerHTML = originalHtml;
+    btn.disabled = false;
+  }
 
-    let quiz = [];
-    if (state.currentFile) {
-      quiz = createDynamicQuizFromText(state.extractedText, count, difficulty);
-    } else {
-      quiz = [...window.VLEARN_SAMPLE_DATA.defaultQuiz];
-    }
+  let quiz = [];
+  if (state.currentFile) {
+    quiz = createDynamicQuizFromText(state.extractedText, count, difficulty);
+  } else {
+    quiz = [...window.VLEARN_SAMPLE_DATA.defaultQuiz];
+  }
 
-    renderQuiz(quiz.slice(0, count));
-    const quizSection = document.getElementById("quizSection");
-    if (quizSection) quizSection.scrollIntoView({ behavior: 'smooth' });
-  }, 500);
+  renderQuiz(quiz.slice(0, count));
+  const quizSection = document.getElementById("quizSection");
+  if (quizSection) quizSection.scrollIntoView({ behavior: 'smooth' });
 }
 
 function createDynamicQuizFromText(text, count, difficulty) {
@@ -333,11 +344,14 @@ function renderQuiz(quizList) {
   updateProgress(0, quizList.length);
 
   container.innerHTML = quizList.map((q, idx) => {
+    const difficultyLabel = { easy: "Dễ", medium: "Vừa", hard: "Khó" }[q.difficulty];
+
     if (q.type === "single") {
       return `
         <div class="question-card" id="qcard_${q.id}">
           <div class="question-title">
             <span class="q-number">Câu ${idx + 1}</span>
+            ${difficultyLabel ? `<span class="pill" style="background:#f1f5f9; color:#475569; font-size:0.72rem;">${difficultyLabel}</span>` : ''}
             <span>${q.question}</span>
           </div>
           <div class="options-group">
@@ -444,8 +458,8 @@ function submitQuiz() {
 
       explainBox.className = `explanation-box show ${isCorrect ? 'correct-box' : 'incorrect-box'}`;
       explainBox.innerHTML = `
-        <strong>${isCorrect ? '✓ Đáp án chính xác!' : '✗ Chưa chính xác.'}</strong><br>
-        <em>Giải thích chi tiết:</em> ${q.explanation}
+        <strong>${isCorrect ? '✓ Đáp án chính xác!' : '✗ Chưa chính xác.'}</strong>${q.citation ? ` <span class="pill" style="margin-left:6px; font-size:0.72rem;">${q.citation}</span>` : ''}<br>
+        <em>Giải thích chi tiết:</em> ${isCorrect ? q.explanation : (q.explanationIncorrect || q.explanation)}
       `;
     } else {
       const userText = (userAns || "").toLowerCase();
@@ -891,7 +905,11 @@ function handleChatKeyPress(e) {
   }
 }
 
-async function sendChatMessage() {
+// Ghi chú: widget chat này trả lời mở (Q&A tự do), KHÔNG nằm trong 3 quyết
+// định AI mà ai-service.js đảm nhận (generateQuestionBank/analyzeQuizResult/
+// parseQuizRequestFromChat) nên tạm thời chỉ dùng mẫu cố định — không giả
+// vờ đây là AI thật.
+function sendChatMessage() {
   const input = document.getElementById("chatInput");
   const text = input.value.trim();
   if (!text) return;
@@ -906,39 +924,11 @@ async function sendChatMessage() {
   input.value = "";
   chatBody.scrollTop = chatBody.scrollHeight;
 
-  const aiMsgEl = document.createElement("div");
-  aiMsgEl.className = "chat-msg msg-ai";
-  aiMsgEl.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> AI Tutor đang suy nghĩ...`;
-  chatBody.appendChild(aiMsgEl);
-  chatBody.scrollTop = chatBody.scrollHeight;
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/tutor/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: text,
-        lessonText: state.extractedText,
-        lessonTitle: state.currentLessonTitle,
-        apiKey: state.apiKey
-      })
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      if (data.reply) {
-        aiMsgEl.innerHTML = data.reply;
-        chatBody.scrollTop = chatBody.scrollHeight;
-        return;
-      }
-    }
-  } catch (err) {
-    console.warn("Backend API /api/tutor/chat unavailable, using local reply fallback:", err);
-  }
-
-  // Fallback to local response
   setTimeout(() => {
+    const aiMsgEl = document.createElement("div");
+    aiMsgEl.className = "chat-msg msg-ai";
     aiMsgEl.innerHTML = generateAiResponse(text);
+    chatBody.appendChild(aiMsgEl);
     chatBody.scrollTop = chatBody.scrollHeight;
   }, 400);
 }

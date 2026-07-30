@@ -14,7 +14,7 @@ const VLearnAI = (() => {
   const LOG_KEY = "VLEARN_AI_CALL_LOG";
   const KEY_STORAGE = "VLEARN_GEMINI_KEY";
   const MODEL_STORAGE = "VLEARN_GEMINI_MODEL";
-  const DEFAULT_MODEL = "gemini-flash-latest";
+  const DEFAULT_MODEL = "gemini-flash-lite-latest";
 
   function getApiKey() {
     return localStorage.getItem(KEY_STORAGE) || "";

@@ -2,7 +2,7 @@
   "_meta": {
     "schema_version": 2,
     "note": "Golden set cho 3 quyết định AI trong codebase/ai-service.js (và bản Python codebase/tool.py): generateQuestionBank, analyzeQuizResult, parseQuizRequestFromChat. Chạy bằng: python codebase/tool.py --golden-set eval/golden_set.json --out eval/run_results_<timestamp>.json",
-    "todo_truoc_khi_nop": "Đây là bộ case MẪU (10/20). Cần bổ sung cho đủ theo guide §2.6: ≥2 case/lớp chỗ khó (hiện ②,③,④ mới có 1 case mỗi lớp), 8-10 case thường, 2-4 case hiếm, và ≥10 case lấy/phát triển từ chatlog hoặc transcript thật (hiện mới GS-01 dùng transcript thật).",
+    "cau_truc_hien_tai": "21 case: 9 thường + 3 hiếm + 2 (① nguồn sự thật) + 3 (② mơ hồ) + 2 (③ ngoài phạm vi) + 2 (④ đặc thù domain). 10/21 case lấy/phát triển từ dữ liệu thật (data/vlearn-pack/) — đủ điều kiện tối thiểu theo guide §2.6.",
     "difficulty_class_legend": "① nguồn sự thật · ② mơ hồ/thiếu thông tin · ③ ngoài phạm vi/thẩm quyền · ④ đặc thù domain · thường"
   },
   "cases": [
@@ -170,6 +170,175 @@
       },
       "expected": {
         "isQuizRequest": false
+      }
+    },
+    {
+      "case_id": "GS-11",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "thường",
+      "source": "data/vlearn-pack/chatlog (đoạn học viên bôi đen, Trang 22 — Memory injection/Compression)",
+      "input": {
+        "lessonTitle": "Agent Memory: Injection & Compression",
+        "sourceText": "[Trang 22] Memory injection: Chỉ đưa vào facts thật sự cần cho task hiện tại. Ưu tiên recent history hoặc relevant history, không dump toàn bộ transcript. Tốt cho support agent, coding assistant, tutor nhiều lượt. Compression: Summarize - tóm tắt phần cũ; Drop - bỏ hẳn phần không còn liên quan; Archive - đẩy phần cũ ra lưu trữ ngoài.",
+        "perDifficulty": 2
+      },
+      "expected": {
+        "min_per_difficulty": { "easy": 1, "medium": 1 }
+      }
+    },
+    {
+      "case_id": "GS-12",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "thường",
+      "source": "data/vlearn-pack/chatlog (đoạn học viên bôi đen, Trang 31 — Context window)",
+      "input": {
+        "lessonTitle": "Context Window & Token Budget",
+        "sourceText": "[Trang 31] Mỗi lần trả lời, model chỉ nhìn được một lượng chữ có hạn — gọi là context. Hãy hình dung một bàn làm việc: mọi thứ muốn model \"thấy\" phải bày lên bàn. Quy đổi: 128K token xấp xỉ một cuốn sách 300 trang; 1M token xấp xỉ 45 cuốn sách trên bàn cùng lúc. Bàn đầy quá thì đồ ở giữa bàn dễ bị bỏ sót.",
+        "perDifficulty": 2
+      },
+      "expected": {
+        "min_per_difficulty": { "easy": 1, "medium": 1 }
+      }
+    },
+    {
+      "case_id": "GS-13",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "thường",
+      "source": "data/vlearn-pack/chatlog (đoạn học viên bôi đen, Trang 28 — Structured outputs)",
+      "input": {
+        "lessonTitle": "Structured Outputs cho Agent Pipeline",
+        "sourceText": "[Trang 28] Mặc định model trả lời free-form text, khó parse programmatically. Trong agent pipeline, bạn cần JSON/structured data. Các cách tiếp cận: Structured outputs - ép schema ở tầng API, cách được khuyến nghị; Prompt-based - yêu cầu 'Respond ONLY with valid JSON'; XML tags dạng <thinking>...</thinking>.",
+        "perDifficulty": 2
+      },
+      "expected": {
+        "min_per_difficulty": { "easy": 1, "medium": 1 }
+      }
+    },
+    {
+      "case_id": "GS-14",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "hiếm",
+      "source": "data/vlearn-pack/chatlog (đoạn học viên bôi đen, Trang 17 — Kiến trúc Agent, nhiều tầng khái niệm)",
+      "input": {
+        "lessonTitle": "Kiến Trúc Agent: Từ Trong Ra Ngoài",
+        "sourceText": "[Trang 17] Kiến Trúc Agent: Từ Trong Ra Ngoài. Reasoning (LLM Core), Perception (User input, Tool results), Action (API / Search / Final answer), Short-term Memory (Context window), Long-term Memory (Store / DB). Input từ môi trường, state và memory giúp agent không mất mạch. Perception: agent nhận text, tool output, feedback.",
+        "perDifficulty": 2
+      },
+      "expected": {
+        "min_per_difficulty": { "easy": 1, "medium": 1 }
+      }
+    },
+    {
+      "case_id": "GS-15",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "hiếm",
+      "source": "data/vlearn-pack/chatlog (đoạn học viên bôi đen, Trang 15 — Agent Patterns, dễ nhầm thứ tự framework)",
+      "input": {
+        "lessonTitle": "Agent Patterns Theo Anthropic",
+        "sourceText": "[Trang 15] Từ Anthropic: Agent Patterns Nên Tăng Dần Theo Nhu Cầu. Augmented LLM (Prompt + docs + tools), Prompt Chaining (Bước nối tiếp rõ ràng), Routing (Chọn path/specialist), Orchestrator-Worker (Phân việc rồi tổng hợp), Agent (Tự quyết nhiều bước). Bắt đầu từ cấu trúc đơn giản nhất đủ dùng. Agent là pattern mạnh nhưng tốn kém nhất.",
+        "perDifficulty": 2
+      },
+      "expected": {
+        "min_per_difficulty": { "easy": 1, "medium": 1 }
+      }
+    },
+    {
+      "case_id": "GS-16",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "② mơ hồ",
+      "source": "data/vlearn-pack/chatlog (tin nhắn học viên thật, chỉ một từ chào)",
+      "input": {
+        "message": "hi",
+        "availableLessons": [
+          { "lessonId": "lesson-jtbd-01", "lessonTitle": "Bài 01: JTBD & Cost-of-error" },
+          { "lessonId": "lesson-rag-02", "lessonTitle": "Bài 02: RAG & Grounding" }
+        ]
+      },
+      "expected": {
+        "isQuizRequest": false
+      }
+    },
+    {
+      "case_id": "GS-17",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "② mơ hồ",
+      "source": "data/vlearn-pack/chatlog (tin nhắn học viên thật, 1 ký tự vô nghĩa)",
+      "input": {
+        "message": "d",
+        "availableLessons": [
+          { "lessonId": "lesson-jtbd-01", "lessonTitle": "Bài 01: JTBD & Cost-of-error" },
+          { "lessonId": "lesson-rag-02", "lessonTitle": "Bài 02: RAG & Grounding" }
+        ]
+      },
+      "expected": {
+        "isQuizRequest": false
+      }
+    },
+    {
+      "case_id": "GS-18",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "thường",
+      "source": "data/vlearn-pack/chatlog (tin nhắn học viên thật, yêu cầu tóm tắt — không phải xin quiz)",
+      "input": {
+        "message": "tóm tắt",
+        "availableLessons": [
+          { "lessonId": "lesson-jtbd-01", "lessonTitle": "Bài 01: JTBD & Cost-of-error" },
+          { "lessonId": "lesson-rag-02", "lessonTitle": "Bài 02: RAG & Grounding" }
+        ]
+      },
+      "expected": {
+        "isQuizRequest": false
+      }
+    },
+    {
+      "case_id": "GS-19",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "③ ngoài phạm vi",
+      "source": "data/vlearn-pack/chatlog (tin nhắn học viên thật, xin đáp án bài lab chính thức)",
+      "input": {
+        "message": "bạn cho tôi biết đáp án bài lab 1 được không",
+        "availableLessons": [
+          { "lessonId": "lesson-jtbd-01", "lessonTitle": "Bài 01: JTBD & Cost-of-error" },
+          { "lessonId": "lesson-rag-02", "lessonTitle": "Bài 02: RAG & Grounding" }
+        ]
+      },
+      "expected": {
+        "isQuizRequest": false
+      }
+    },
+    {
+      "case_id": "GS-20",
+      "target_function": "analyzeQuizResult",
+      "difficulty_class": "④ đặc thù domain",
+      "source": "synthetic (kết quả trái ngược trực giác — đúng câu khó, sai câu dễ, test AI không kết luận cẩu thả theo % tổng)",
+      "input": {
+        "lessonTitle": "Bài 01: JTBD & Cost-of-error",
+        "gradedQuestions": [
+          { "question": "Công thức lát cắt sản phẩm 1 câu gồm những gì?", "difficulty": "easy", "citation": "Trang 1", "isCorrect": false },
+          { "question": "AI nên làm gì khi thiếu căn cứ trích dẫn?", "difficulty": "easy", "citation": "Trang 2", "isCorrect": false },
+          { "question": "Golden set tối thiểu cần bao nhiêu case theo chuẩn nhóm?", "difficulty": "hard", "citation": "Trang 4", "isCorrect": true },
+          { "question": "Vì sao Quality Bar phải chốt trước khi đo?", "difficulty": "hard", "citation": "Trang 4", "isCorrect": true }
+        ]
+      },
+      "expected": {
+        "direction": "easier"
+      }
+    },
+    {
+      "case_id": "GS-21",
+      "target_function": "analyzeQuizResult",
+      "difficulty_class": "hiếm",
+      "source": "synthetic (điểm tuyệt đối, toàn câu khó — test nextMix hợp lệ, không âm/không vượt tổng khi đã ở mức trần)",
+      "input": {
+        "lessonTitle": "Bài 01: JTBD & Cost-of-error",
+        "gradedQuestions": [
+          { "question": "Golden set tối thiểu cần bao nhiêu case theo chuẩn nhóm?", "difficulty": "hard", "citation": "Trang 4", "isCorrect": true },
+          { "question": "Vì sao Quality Bar phải chốt trước khi đo?", "difficulty": "hard", "citation": "Trang 4", "isCorrect": true },
+          { "question": "Vì sao Conditional phù hợp khi đa số case lành, số ít hiểm?", "difficulty": "hard", "citation": "Trang 3", "isCorrect": true }
+        ]
+      },
+      "expected": {
+        "direction": "harder"
       }
     }
   ]

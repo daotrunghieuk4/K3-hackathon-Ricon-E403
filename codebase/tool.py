@@ -30,7 +30,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
-DEFAULT_MODEL = "gemini-flash-latest"
+DEFAULT_MODEL = "gemini-flash-lite-latest"
 CALL_LOG_PATH = os.path.join("eval", "tool_call_log.json")
 
 # Console Windows mặc định dùng cp1252, không in được tiếng Việt UTF-8 -> ép lại.
@@ -89,9 +89,21 @@ def append_call_log(entry):
         json.dump(log, f, ensure_ascii=False, indent=2)
 
 
-def call_gemini(purpose, prompt):
+def _parse_retry_delay_seconds(err_body, default=20):
+    """Đọc 'Please retry in Ns' hoặc retryDelay":"Ns" từ lỗi 429 của Gemini."""
+    m = re.search(r'"retryDelay"\s*:\s*"(\d+)s"', err_body) or re.search(
+        r"retry in (\d+(?:\.\d+)?)s", err_body
+    )
+    if m:
+        return min(float(m.group(1)) + 1, 60)
+    return default
+
+
+def call_gemini(purpose, prompt, max_retries=3):
     """Lời gọi Gemini thật duy nhất trong file này, ép model trả JSON.
-    Không có key -> ném lỗi rõ ràng (không im lặng bịa kết quả)."""
+    Không có key -> ném lỗi rõ ràng (không im lặng bịa kết quả). Free tier hay
+    bị 429 (rate-limit theo phút) khi chạy golden set liên tiếp -> tự chờ theo
+    retryDelay Gemini đề xuất rồi thử lại, tối đa max_retries lần."""
     api_key = get_api_key()
     model = get_model()
     url = (
@@ -108,10 +120,6 @@ def call_gemini(purpose, prompt):
         }
     ).encode("utf-8")
 
-    req = urllib.request.Request(
-        url, data=body, headers={"Content-Type": "application/json"}, method="POST"
-    )
-
     started = time.time()
     log_entry = {
         "purpose": purpose,
@@ -120,24 +128,42 @@ def call_gemini(purpose, prompt):
         "promptPreview": prompt[:400],
     }
 
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        err_body = e.read().decode("utf-8", errors="ignore")
+    data = None
+    last_err = None
+    for attempt in range(1, max_retries + 1):
+        req = urllib.request.Request(
+            url, data=body, headers={"Content-Type": "application/json"}, method="POST"
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            last_err = None
+            break
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode("utf-8", errors="ignore")
+            if e.code == 429 and attempt < max_retries:
+                wait_s = _parse_retry_delay_seconds(err_body)
+                print(
+                    f"  [rate-limit 429] chờ {wait_s:.0f}s rồi thử lại (lần {attempt}/{max_retries})...",
+                    file=sys.stderr,
+                )
+                time.sleep(wait_s)
+                last_err = RuntimeError(f"Gemini HTTP {e.code}: {err_body[:300]}")
+                continue
+            last_err = RuntimeError(f"Gemini HTTP {e.code}: {err_body[:300]}")
+            break
+        except Exception as e:
+            last_err = e
+            break
+
+    if last_err is not None:
         log_entry.update(
             status="error",
             latencyMs=int((time.time() - started) * 1000),
-            error=f"HTTP {e.code}: {err_body[:300]}",
+            error=str(last_err),
         )
         append_call_log(log_entry)
-        raise RuntimeError(f"Gemini HTTP {e.code}: {err_body[:300]}") from e
-    except Exception as e:
-        log_entry.update(
-            status="error", latencyMs=int((time.time() - started) * 1000), error=str(e)
-        )
-        append_call_log(log_entry)
-        raise
+        raise last_err
 
     try:
         raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
@@ -424,12 +450,15 @@ def load_cases(path):
     return data["cases"] if isinstance(data, dict) and "cases" in data else data
 
 
-def run_golden_set(golden_set_path, out_path):
+def run_golden_set(golden_set_path, out_path, delay_seconds=3):
     cases = load_cases(golden_set_path)
     results = []
     passed_count = 0
 
-    for case in cases:
+    for idx, case in enumerate(cases):
+        if idx > 0 and delay_seconds > 0:
+            time.sleep(delay_seconds)  # tránh dồn request, dễ dính 429 free-tier
+
         case_id = case["case_id"]
         target = case["target_function"]
         print(f"[{case_id}] gọi {target} ...", file=sys.stderr)
@@ -486,10 +515,16 @@ def main():
     parser.add_argument(
         "--out", default=None, help="Mặc định: eval/run_results_<timestamp>.json"
     )
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=3,
+        help="Số giây chờ giữa mỗi case (tránh 429 rate-limit free-tier). Mặc định 3s.",
+    )
     args = parser.parse_args()
 
     out_path = args.out or f"eval/run_results_{int(time.time())}.json"
-    run_golden_set(args.golden_set, out_path)
+    run_golden_set(args.golden_set, out_path, delay_seconds=args.delay)
 
 
 if __name__ == "__main__":

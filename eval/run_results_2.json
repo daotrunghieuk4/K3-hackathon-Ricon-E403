@@ -1,0 +1,882 @@
+{
+  "run_at": "2026-07-30T10:16:13.760515+00:00",
+  "total_cases": 21,
+  "passed": 20,
+  "pass_rate_pct": 95.2,
+  "results": [
+    {
+      "case_id": "GS-01",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "thường",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "questions": [
+          {
+            "difficulty": "easy",
+            "question": "Theo tài liệu, khi đưa AI vào ứng dụng trong doanh nghiệp, phần lớn tỷ lệ (khoảng 70%) đến từ yếu tố nào?",
+            "options": [
+              "Thuật toán công nghệ tiên tiến",
+              "Con người và vận hành",
+              "Hạ tầng máy chủ và dữ liệu lớn",
+              "Ngân sách đầu tư"
+            ],
+            "correctIndex": 1,
+            "explanationCorrect": "Tài liệu chỉ rõ: 'việc đưa AI vào ứng dụng, đặc biệt trong doanh nghiệp, thì 70% của nó đến từ con người và vận hành chứ không phải đến từ công nghệ.'",
+            "explanationIncorrect": "Nhiều người lầm tưởng công nghệ đóng vai trò quyết định nhất khi làm AI, nhưng thực tế 70% thuộc về con người và vận hành.",
+            "citation": "T01-003"
+          },
+          {
+            "difficulty": "easy",
+            "question": "Góc nhìn của tác giả về công nghệ là gì?",
+            "options": [
+              "Công nghệ là mục đích tối thượng của doanh nghiệp",
+              "Công nghệ tự động tạo ra giá trị kinh tế",
+              "Công nghệ sinh ra để giải quyết một vấn đề gì đấy",
+              "Công nghệ luôn phức tạp và khó tiếp cận"
+            ],
+            "correctIndex": 2,
+            "explanationCorrect": "Tài liệu nêu rõ: 'Góc nhìn của mình từ trước đến giờ với công nghệ rất đơn giản: mình luôn nghĩ công nghệ sinh ra để giải quyết một vấn đề gì đấy.'",
+            "explanationIncorrect": "Học viên có thể nhầm tưởng công nghệ là mục tiêu tự thân, trong khi bản chất nó chỉ là công cụ để giải quyết vấn đề.",
+            "citation": "T01-004"
+          },
+          {
+            "difficulty": "medium",
+            "question": "Theo tài liệu, kỹ năng nào được đánh giá là quan trọng và đang cần nhất tại các công ty muốn đưa AI vào ứng dụng?",
+            "options": [
+              "Khả năng viết code lập trình AI tối ưu",
+              "Khả năng xác định bài toán từ yêu cầu mơ hồ và bóc tách cho team development",
+              "Khả năng tự động hóa toàn bộ quy trình vận hành",
+              "Khả năng thuyết trình dự án trước các nhà đầu tư lớn"
+            ],
+            "correctIndex": 1,
+            "explanationCorrect": "Tài liệu khẳng định kỹ năng quan trọng nhất là 'khả năng xác định ra một bài toán từ một yêu cầu rất mơ hồ... sau đấy bóc tách nó ra cho team development phát triển.'",
+            "explanationIncorrect": "Nhiều người nghĩ kỹ năng viết code lập trình mới là quan trọng nhất khi làm AI, nhưng tài liệu nhấn mạnh vào việc xác định và bóc tách bài toán từ yêu cầu mơ hồ.",
+            "citation": "T01-001"
+          },
+          {
+            "difficulty": "medium",
+            "question": "Tác giả thường làm gì khi gặp trường hợp sếp đưa ra những yêu cầu khá chung chung và không rõ lắm?",
+            "options": [
+              "Tự ý triển khai theo suy đoán cá nhân",
+              "Từ chối nhận việc cho đến khi có yêu cầu chi tiết",
+              "Hỏi lại hoặc thử bóc tách ra vài option từ đề bài",
+              "Yêu cầu sếp tự đi học khóa về AI trước"
+            ],
+            "correctIndex": 2,
+            "explanationCorrect": "Tài liệu nêu rõ cách xử lý: 'Một cách mình hay làm là mình hỏi lại, hoặc mình thử từ cái đề bài đấy bóc tách ra vài option.'",
+            "explanationIncorrect": "Học viên có thể nghĩ nên tự ý làm ngay hoặc từ chối, nhưng cách làm thực tế được gợi ý là hỏi lại hoặc bóc tách option.",
+            "citation": "T01-006"
+          },
+          {
+            "difficulty": "hard",
+            "question": "Theo tác giả, điểm cốt lõi nào tạo ra sự khác biệt giúp biến mục tiêu hoặc yêu cầu mơ hồ thành thứ có thể triển khai trong thời gian ngắn?",
+            "options": [
+              "Sử dụng công cụ quản lý dự án hiện đại",
+              "Rèn luyện một tư duy để chuyển đổi yêu cầu thành thứ cụ thể có kết quả",
+              "Có sự hậu thuẫn tài chính mạnh mẽ từ ban giám đốc",
+              "Thuê chuyên gia tư vấn chiến lược bên ngoài"
+            ],
+            "correctIndex": 1,
+            "explanationCorrect": "Tài liệu nhấn mạnh việc 'rèn luyện một tư duy để làm được một việc — chỉ một dòng thôi nhưng rất khó: từ mục tiêu, yêu cầu mơ hồ, biến nó thành thứ cụ thể có thể triển khai được trong thời gian ngắn và ra được kết quả.'",
+            "explanationIncorrect": "Học viên dễ nhầm rằng công cụ quản lý hay nguồn lực tài chính mới là yếu tố tạo khác biệt, nhưng bản chất nằm ở việc rèn luyện tư duy bóc tách yêu cầu.",
+            "citation": "T01-005"
+          }
+        ],
+        "skippedTopics": [
+          {
+            "difficulty": "hard",
+            "reason": "Tài liệu chỉ có độ dài ngắn (6 đoạn trích) và đã khai thác hết các ý cốt lõi cho các mức easy, medium và câu hard đầu tiên. Không còn đủ nội dung chi tiết để tạo thêm câu hỏi mức khó thứ hai và thứ ba mà không bịa đặt."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "GS-02",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "① nguồn sự thật",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "questions": [
+          {
+            "difficulty": "easy",
+            "question": "AI Product cần có gì trước khi tiến hành build để tránh xây những tính năng không ai cần?",
+            "options": [
+              "Bằng chứng (evidence)",
+              "Ngân sách lớn",
+              "Đội ngũ nhân sự đông đảo",
+              "Giấy phép kinh doanh"
+            ],
+            "correctIndex": 0,
+            "explanationCorrect": "Theo tài liệu, AI Product cần có bằng chứng (evidence) trước khi build để tránh xây tính năng không ai cần.",
+            "explanationIncorrect": "Ngân sách, nhân sự hay giấy phép không được nhắc đến trong tài liệu là yếu tố cốt lõi cần có trước khi build để tránh lãng phí tính năng.",
+            "citation": "Trang 1"
+          }
+        ],
+        "skippedTopics": [
+          {
+            "difficulty": "easy",
+            "reason": "Tài liệu quá ngắn, chỉ cung cấp đủ thông tin cho 1 câu hỏi ở mức độ dễ."
+          },
+          {
+            "difficulty": "medium",
+            "reason": "Tài liệu không có đủ dữ liệu để xây dựng câu hỏi mức độ trung bình theo đúng quy định không được bịa thêm."
+          },
+          {
+            "difficulty": "hard",
+            "reason": "Tài liệu quá ngắn và đơn giản, không đủ nội dung để tạo câu hỏi nâng cao (hard)."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "GS-03",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "thường",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "questions": [
+          {
+            "difficulty": "easy",
+            "question": "Công thức lát cắt sản phẩm 1 câu bao gồm những yếu tố nào?",
+            "options": [
+              "1 người dùng, 1 công việc, 1 quyết định AI, 1 kết quả",
+              "2 người dùng, 2 công việc, 2 quyết định AI, 2 kết quả",
+              "1 người dùng, 2 công việc, 1 quyết định AI, 1 kết quả",
+              "1 người dùng, 1 công việc, 2 quyết định AI, 2 kết quả"
+            ],
+            "correctIndex": 0,
+            "explanationCorrect": "Theo tài liệu, công thức lát cắt sản phẩm 1 câu gồm: 1 người dùng, 1 công việc, 1 quyết định AI, 1 kết quả.",
+            "explanationIncorrect": "Học viên có thể nhầm lẫn với số lượng người dùng hoặc quyết định AI khác do không nhớ chính xác công thức 1 câu được định nghĩa trong tài liệu.",
+            "citation": "Trang 1"
+          },
+          {
+            "difficulty": "easy",
+            "question": "Theo tài liệu, một sản phẩm AI tốt bắt đầu từ đâu?",
+            "options": [
+              "Mô hình LLM mạnh nhất",
+              "Một bài toán thật có bằng chứng (Evidence)",
+              "Giao diện người dùng thân thiện",
+              "Số lượng dữ liệu lớn không cần xác minh"
+            ],
+            "correctIndex": 1,
+            "explanationCorrect": "Tài liệu khẳng định một sản phẩm AI tốt không bắt đầu từ mô hình LLM mạnh nhất, mà bắt đầu từ một bài toán thật có bằng chứng (Evidence).",
+            "explanationIncorrect": "Nhiều người lầm tưởng rằng cứ dùng mô hình LLM mạnh nhất là tạo ra sản phẩm AI tốt, trái với nguyên tắc nêu trong tài liệu.",
+            "citation": "Trang 1"
+          },
+          {
+            "difficulty": "easy",
+            "question": "Golden set tối thiểu cần bao nhiêu case để phủ đủ các đường đi trải nghiệm?",
+            "options": [
+              "10 case",
+              "15 case",
+              "20 case",
+              "50 case"
+            ],
+            "correctIndex": 2,
+            "explanationCorrect": "Tài liệu nêu rõ Golden set tối thiểu cần 20 case phủ đủ các đường đi trải nghiệm.",
+            "explanationIncorrect": "Học viên có thể đoán mò các con số tròn khác như 10 hay 50 thay vì con số 20 được quy định cụ thể.",
+            "citation": "Trang 4"
+          },
+          {
+            "difficulty": "medium",
+            "question": "Khi AI gặp phải trường hợp Mơ hồ hoặc Thiếu thông tin, AI nên xử lý như thế nào?",
+            "options": [
+              "Đoán liều câu trả lời cho người dùng",
+              "Từ chối lịch sự và hướng dẫn quy trình chuẩn",
+              "Hỏi lại thay vì đoán liều",
+              "Chỉ dùng dữ liệu đã xác minh"
+            ],
+            "correctIndex": 2,
+            "explanationCorrect": "Đối với lớp khó Mơ hồ/Thiếu thông tin, tài liệu hướng dẫn AI phải hỏi lại thay vì đoán liều.",
+            "explanationIncorrect": "Học viên có thể nhầm lẫn cách xử lý này với trường hợp 'Ngoài thẩm quyền' (từ chối lịch sự) hoặc đoán liều do AI thiếu kiểm soát.",
+            "citation": "Trang 2"
+          },
+          {
+            "difficulty": "medium",
+            "question": "Trong trường hợp nào thì hệ thống AI nên được cấu hình ở mức độ Automate?",
+            "options": [
+              "Khi sai thì đắt và cần người quyết định",
+              "Khi đa số case lành số ít hiểm",
+              "Khi sai thì rẻ và user tự sửa được",
+              "Khi thiếu căn cứ và cần trích dẫn trang"
+            ],
+            "correctIndex": 2,
+            "explanationCorrect": "Tài liệu chỉ rõ Automate được áp dụng khi sai thì rẻ và user tự sửa được.",
+            "explanationIncorrect": "Học viên có thể chọn nhầm các mức độ Cost-of-error khác như Augment (khi sai thì đắt) hoặc Conditional (khi đa số case lành số ít hiểm).",
+            "citation": "Trang 3"
+          },
+          {
+            "difficulty": "medium",
+            "question": "Quy định nào về Quality Bar được nêu trong tài liệu?",
+            "options": [
+              "Phải là con số cụ thể, chốt trước khi đo và giữ nguyên sau đó",
+              "Là một khái niệm linh hoạt, có thể thay đổi trong quá trình đo",
+              "Không cần là con số cụ thể miễn là sản phẩm chạy được",
+              "Chỉ chốt sau khi đã đo đạc xong kết quả"
+            ],
+            "correctIndex": 0,
+            "explanationCorrect": "Tài liệu nêu rõ Quality Bar phải là con số cụ thể, chốt trước khi đo và giữ nguyên sau đó.",
+            "explanationIncorrect": "Học viên có tư duy linh hoạt theo kiểu Agile sai lệch có thể nghĩ rằng Quality Bar được phép thay đổi liên tục trong quá trình đo.",
+            "citation": "Trang 4"
+          },
+          {
+            "difficulty": "hard",
+            "question": "Theo cấu trúc 4 lớp chỗ khó, hành động 'trích dẫn trang, không có căn cứ thì từ chối' tương ứng với lớp chỗ khó nào và cách xử lý khi gặp tình huống AI bịa thông tin?",
+            "options": [
+              "Nguồn sự thật",
+              "Mơ hồ/Thiếu thông tin",
+              "Ngoài thẩm quyền",
+              "Đặc thù Domain"
+            ],
+            "correctIndex": 0,
+            "explanationCorrect": "Vấn đề AI bịa thông tin khi thiếu căn cứ và yêu cầu trích dẫn trang nằm trong lớp chỗ khó 'Nguồn sự thật'.",
+            "explanationIncorrect": "Học viên có thể nhầm sang lớp 'Đặc thù Domain' vì liên quan đến dữ liệu, tuy nhiên việc bịa thông tin và trích dẫn trang xuất phát từ vấn đề Nguồn sự thật.",
+            "citation": "Trang 2"
+          },
+          {
+            "difficulty": "hard",
+            "question": "Yếu tố nào quyết định mức automation trong thiết kế sản phẩm AI?",
+            "options": [
+              "Độ mạnh của mô hình LLM",
+              "Cost-of-error",
+              "Số lượng case trong Golden set",
+              "Quy mô của Domain đặc thù"
+            ],
+            "correctIndex": 1,
+            "explanationCorrect": "Tài liệu khẳng định trực tiếp: Cost-of-error quyết định mức automation.",
+            "explanationIncorrect": "Học viên dễ bị đánh lừa bởi các yếu tố khác như độ mạnh của LLM hoặc Golden set, dù tài liệu đã nêu rõ Cost-of-error mới là yếu tố quyết định mức automation.",
+            "citation": "Trang 3"
+          }
+        ],
+        "skippedTopics": [
+          {
+            "difficulty": "hard",
+            "reason": "Tài liệu chỉ cung cấp đủ nội dung để sinh 2 câu hỏi mức độ hard, không đủ dữ liệu để tạo câu hỏi thứ 3 mà không bịa thêm."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "GS-04",
+      "target_function": "analyzeQuizResult",
+      "difficulty_class": "thường",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "weakTopics": [
+          "Lý do Conditional phù hợp khi đa số case lành, số ít hiểm"
+        ],
+        "summary": "Kết quả bước đầu cho thấy học viên đã nắm bắt khá tốt các khái niệm cốt lõi của bài JTBD & Cost-of-error với tỉ lệ trả lời đúng cao, ngoại trừ việc chưa trả lời chính xác câu hỏi về mô hình Conditional. Dữ liệu hiện tại chưa đủ để kết luận toàn diện nhưng phản ánh học viên cần ôn tập thêm về logic phân bổ Cost-of-error.",
+        "nextMix": {
+          "easy": 1,
+          "medium": 2,
+          "hard": 3
+        }
+      }
+    },
+    {
+      "case_id": "GS-05",
+      "target_function": "analyzeQuizResult",
+      "difficulty_class": "thường",
+      "status": "FAIL",
+      "issues": [
+        "weakTopics vượt quá 3 chủ đề"
+      ],
+      "output": {
+        "weakTopics": [
+          "Công thức lát cắt sản phẩm 1 câu",
+          "Mức Augment so với Automate",
+          "Conditional trong xử lý case",
+          "Golden set chuẩn nhóm",
+          "Quality Bar trước khi đo"
+        ],
+        "summary": "Kết quả bài quiz bước đầu cho thấy học viên còn gặp khó khăn ở nhiều nội dung từ cơ bản đến nâng cao của bài học, tuy nhiên dữ liệu hiện tại chưa đủ để kết luận chắc chắn về toàn bộ năng lực. Học viên cần ôn tập lại các khái niệm trọng tâm trước khi thực hiện lượt quiz tiếp theo.",
+        "nextMix": {
+          "easy": 4,
+          "medium": 2,
+          "hard": 0
+        }
+      }
+    },
+    {
+      "case_id": "GS-06",
+      "target_function": "analyzeQuizResult",
+      "difficulty_class": "④ đặc thù domain",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "weakTopics": [
+          "Công thức lát cắt sản phẩm 1 câu",
+          "Tiêu chí lựa chọn mức Augment thay vì Automate",
+          "Quy chuẩn số lượng case tối thiểu trong Golden set"
+        ],
+        "summary": "Kết quả bài làm bước đầu cho thấy học viên chưa trả lời đúng các câu hỏi về lát cắt sản phẩm, mức độ tự động hóa và Golden set trong bài JTBD & Cost-of-error. Tuy nhiên, dữ liệu này còn ít ỏi và chưa đủ để kết luận chắc chắn về toàn bộ năng lực của học viên.",
+        "nextMix": {
+          "easy": 2,
+          "medium": 1,
+          "hard": 0
+        }
+      }
+    },
+    {
+      "case_id": "GS-07",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "thường",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "isQuizRequest": true,
+        "lessonId": "lesson-jtbd-01",
+        "requestedCount": 6,
+        "needsClarification": false,
+        "clarifyingQuestion": null
+      }
+    },
+    {
+      "case_id": "GS-08",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "② mơ hồ",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "isQuizRequest": true,
+        "lessonId": null,
+        "requestedCount": null,
+        "needsClarification": true,
+        "clarifyingQuestion": "Bạn muốn làm quiz cho Bài 01 (JTBD & Cost-of-error) hay Bài 02 (RAG & Grounding) vậy ạ?"
+      }
+    },
+    {
+      "case_id": "GS-09",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "① nguồn sự thật",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "isQuizRequest": true,
+        "lessonId": null,
+        "requestedCount": null,
+        "needsClarification": true,
+        "clarifyingQuestion": "Hiện tại hệ thống chưa có bài học về Deep Learning nâng cao. Bạn có muốn chuyển sang ôn tập 'Bài 01: JTBD & Cost-of-error' hoặc 'Bài 02: RAG & Grounding' không?"
+      }
+    },
+    {
+      "case_id": "GS-10",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "③ ngoài phạm vi",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "isQuizRequest": false,
+        "lessonId": null,
+        "requestedCount": null,
+        "needsClarification": false,
+        "clarifyingQuestion": null
+      }
+    },
+    {
+      "case_id": "GS-11",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "thường",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "questions": [
+          {
+            "difficulty": "easy",
+            "question": "Trong kỹ thuật Memory injection, chúng ta nên đưa loại thông tin nào vào?",
+            "options": [
+              "Toàn bộ transcript của cuộc trò chuyện từ trước đến nay",
+              "Chỉ đưa vào facts thật sự cần cho task hiện tại",
+              "Toàn bộ lịch sử trò chuyện bất kể có liên quan hay không",
+              "Chỉ những thông tin được lưu trữ ở bộ nhớ ngoài"
+            ],
+            "correctIndex": 1,
+            "explanationCorrect": "Theo tài liệu, Memory injection là chỉ đưa vào facts thật sự cần cho task hiện tại, ưu tiên recent history hoặc relevant history, không dump toàn bộ transcript.",
+            "explanationIncorrect": "Học viên thường nhầm tưởng là cần cung cấp toàn bộ lịch sử trò chuyện (dump toàn bộ transcript) để AI có đầy đủ bối cảnh nhất, nhưng thực tế kỹ thuật này yêu cầu chỉ chọn lọc các facts thật sự cần thiết.",
+            "citation": "Trang 22"
+          },
+          {
+            "difficulty": "easy",
+            "question": "Phương pháp nào sau đây KHÔNG được nhắc đến trong phần Compression của bài học?",
+            "options": [
+              "Summarize",
+              "Drop",
+              "Archive",
+              "Encrypt"
+            ],
+            "correctIndex": 3,
+            "explanationCorrect": "Tài liệu nêu rõ ba phương pháp của Compression là: Summarize (tóm tắt), Drop (bỏ hẳn) và Archive (đẩy ra lưu trữ ngoài). Encrypt không xuất hiện trong tài liệu.",
+            "explanationIncorrect": "Học viên có thể đoán mò dựa trên các thuật ngữ bảo mật thông thường, nhưng tài liệu chỉ giới hạn ba hành động nén bộ nhớ cụ thể là Summarize, Drop và Archive.",
+            "citation": "Trang 22"
+          },
+          {
+            "difficulty": "medium",
+            "question": "Khi thực hiện Memory injection, loại lịch sử trò chuyện nào nên được ưu tiên đưa vào thay vì dump toàn bộ transcript?",
+            "options": [
+              "Recent history hoặc relevant history",
+              "Oldest history hoặc archived history",
+              "Random history hoặc encrypted history",
+              "Complete history hoặc raw history"
+            ],
+            "correctIndex": 0,
+            "explanationCorrect": "Tài liệu chỉ rõ cần ưu tiên recent history hoặc relevant history và không dump toàn bộ transcript.",
+            "explanationIncorrect": "Nhiều người học lầm tưởng cần đưa vào toàn bộ lịch sử từ cũ đến mới (complete/raw history), trong khi tài liệu chỉ định rõ chỉ ưu tiên lịch sử gần đây (recent) hoặc có liên quan (relevant).",
+            "citation": "Trang 22"
+          },
+          {
+            "difficulty": "medium",
+            "question": "Phương pháp 'Drop' trong phần Compression có nghĩa là gì dựa trên tài liệu?",
+            "options": [
+              "Tóm tắt phần cũ của cuộc trò chuyện",
+              "Bỏ hẳn phần không còn liên quan",
+              "Đẩy phần cũ ra lưu trữ ngoài",
+              "Chỉ đưa vào các facts thật sự cần cho task"
+            ],
+            "correctIndex": 1,
+            "explanationCorrect": "Tài liệu định nghĩa rõ ràng: 'Drop - bỏ hẳn phần không còn liên quan'.",
+            "explanationIncorrect": "Học viên có thể nhầm lẫn 'Drop' với việc lưu trữ ngoài (Archive) hoặc tóm tắt (Summarize), nhưng Drop ở đây mang nghĩa loại bỏ hẳn những phần không còn liên quan.",
+            "citation": "Trang 22"
+          },
+          {
+            "difficulty": "hard",
+            "question": "Theo tài liệu, kỹ thuật Memory injection tỏ ra tốt nhất cho những ứng dụng nào sau đây?",
+            "options": [
+              "Các hệ thống xử lý file văn bản tĩnh một lần duy nhất",
+              "Support agent, coding assistant, tutor nhiều lượt",
+              "Các mô hình huấn luyện ngôn ngữ lớn từ đầu (Pre-training)",
+              "Hệ thống lưu trữ cơ sở dữ liệu phân tán"
+            ],
+            "correctIndex": 1,
+            "explanationCorrect": "Tài liệu ghi nhận: 'Tốt cho support agent, coding assistant, tutor nhiều lượt.'",
+            "explanationIncorrect": "Học viên có thể chọn nhầm các tác vụ xử lý tĩnh hoặc huấn luyện mô hình do không đọc kỹ ứng dụng cụ thể được liệt kê trong ngữ cảnh của tài liệu.",
+            "citation": "Trang 22"
+          }
+        ],
+        "skippedTopics": [
+          {
+            "difficulty": "hard",
+            "reason": "Tài liệu cung cấp quá ngắn gọn (chỉ trong Trang 22) và không đủ thông tin chi tiết để sinh thêm câu hỏi thứ hai ở mức độ khó (hard) mà không phải suy diễn ngoài văn bản."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "GS-12",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "thường",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "questions": [
+          {
+            "difficulty": "easy",
+            "question": "Theo tài liệu, thuật ngữ 'context' dùng để chỉ điều gì đối với model?",
+            "options": [
+              "Lượng chữ hạn mà model có thể nhìn thấy mỗi lần trả lời",
+              "Tốc độ xử lý dữ liệu của model",
+              "Số lượng sách mà model đã được huấn luyện",
+              "Khả năng ghi nhớ vĩnh viễn của model"
+            ],
+            "correctIndex": 0,
+            "explanationCorrect": "Tài liệu nêu rõ: 'Mỗi lần trả lời, model chỉ nhìn được một lượng chữ có hạn — gọi là context.'",
+            "explanationIncorrect": "Các phương án khác nói về tốc độ xử lý, số sách huấn luyện hoặc trí nhớ vĩnh viễn, không phải định nghĩa về context được cung cấp trong tài liệu.",
+            "citation": "Trang 31"
+          },
+          {
+            "difficulty": "easy",
+            "question": "Trong tài liệu, dung lượng 128K token xấp xỉ tương đương với vật phẩm nào?",
+            "options": [
+              "Một cuốn sách 300 trang",
+              "45 cuốn sách trên bàn cùng lúc",
+              "Một bài báo ngắn",
+              "Một thư viện khổng lồ"
+            ],
+            "correctIndex": 0,
+            "explanationCorrect": "Tài liệu quy đổi: '128K token xấp xỉ một cuốn sách 300 trang'.",
+            "explanationIncorrect": "Học viên có thể nhầm lẫn với 1M token (tương đương 45 cuốn sách) được nhắc đến ở câu tiếp theo trong tài liệu.",
+            "citation": "Trang 31"
+          },
+          {
+            "difficulty": "medium",
+            "question": "Theo phép ẩn dụ trong tài liệu, việc ví context window như một 'bàn làm việc' nhằm minh họa điều gì?",
+            "options": [
+              "Mọi thứ muốn model 'thấy' phải bày lên bàn, và bàn đầy quá thì đồ ở giữa dễ bị bỏ sót",
+              "Model cần một không gian rộng lớn để lưu trữ file tài liệu vĩnh viễn",
+              "Dữ liệu trên bàn làm việc luôn được sắp xếp theo thứ tự thời gian",
+              "Model có thể tự động thu dọn bàn làm việc khi quá tải"
+            ],
+            "correctIndex": 0,
+            "explanationCorrect": "Tài liệu dùng hình ảnh bàn làm việc để giải thích rằng mọi thứ muốn model thấy phải bày lên bàn, và khi bàn đầy quá thì đồ ở giữa dễ bị bỏ sót.",
+            "explanationIncorrect": "Các ý về lưu trữ vĩnh viễn, sắp xếp thời gian hay tự động thu dọn không có trong tài liệu và là suy diễn ngoài lề.",
+            "citation": "Trang 31"
+          },
+          {
+            "difficulty": "hard",
+            "question": "Dựa vào tài liệu, điều gì sẽ xảy ra khi lượng token đạt mức 1M token hoặc khi 'bàn quá đầy'?",
+            "options": [
+              "Đồ ở giữa bàn dễ bị bỏ sót",
+              "Model sẽ tự động xóa bỏ các dữ liệu ít quan trọng nhất ở rìa bàn",
+              "Tốc độ phản hồi của model sẽ tăng lên gấp nhiều lần",
+              "Model sẽ từ chối xử lý toàn bộ dữ liệu trên bàn"
+            ],
+            "correctIndex": 0,
+            "explanationCorrect": "Tài liệu chỉ rõ: '1M token xấp xỉ 45 cuốn sách trên bàn cùng lúc. Bàn đầy quá thì đồ ở giữa bàn dễ bị bỏ sót.'",
+            "explanationIncorrect": "Học viên dễ bị lừa bởi các phỏng đoán hợp lý ngoài đời thực như model tự xóa dữ liệu hay từ chối xử lý, nhưng tài liệu chỉ đề cập việc đồ ở giữa dễ bị bỏ sót.",
+            "citation": "Trang 31"
+          }
+        ],
+        "skippedTopics": [
+          {
+            "difficulty": "hard",
+            "reason": "Tài liệu quá ngắn (chỉ có 1 đoạn ở trang 31), không đủ thông tin để sinh thêm câu hỏi thứ hai ở mức độ khó."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "GS-13",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "thường",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "questions": [
+          {
+            "difficulty": "easy",
+            "question": "Theo tài liệu, mặc định các mô hình trả lời dưới dạng gì khiến việc parse bằng chương trình trở nên khó khăn?",
+            "options": [
+              "Structured outputs",
+              "Free-form text",
+              "Valid JSON",
+              "XML tags"
+            ],
+            "correctIndex": 1,
+            "explanationCorrect": "Tài liệu nêu rõ: 'Mặc định model trả lời free-form text, khó parse programmatically.'",
+            "explanationIncorrect": "Các định dạng như JSON, Structured outputs hay XML tags là những cách tiếp cận khắc phục vấn đề này chứ không phải là dạng mặc định của model.",
+            "citation": "Trang 28"
+          },
+          {
+            "difficulty": "medium",
+            "question": "Cách tiếp cận nào được khuyến nghị để lấy dữ liệu có cấu trúc từ model trong agent pipeline?",
+            "options": [
+              "Prompt-based yêu cầu trả lời JSON",
+              "Sử dụng XML tags như <thinking>",
+              "Structured outputs - ép schema ở tầng API",
+              "Tự động parse free-form text"
+            ],
+            "correctIndex": 2,
+            "explanationCorrect": "Tài liệu khẳng định Structured outputs bằng cách ép schema ở tầng API là 'cách được khuyến nghị'.",
+            "explanationIncorrect": "Prompt-based hay XML tags là các cách tiếp cận được nhắc đến nhưng không phải là phương pháp được tài liệu đánh giá là được khuyến nghị hàng đầu.",
+            "citation": "Trang 28"
+          },
+          {
+            "difficulty": "hard",
+            "question": "Trong các cách tiếp cận được liệt kê để xử lý dữ liệu đầu ra cho agent pipeline, phương pháp nào yêu cầu model thông qua câu lệnh?",
+            "options": [
+              "Structured outputs (ép schema ở tầng API)",
+              "Prompt-based (yêu cầu 'Respond ONLY with valid JSON')",
+              "Sử dụng XML tags <thinking>...</thinking>",
+              "Parse programmatically free-form text"
+            ],
+            "correctIndex": 1,
+            "explanationCorrect": "Tài liệu định nghĩa Prompt-based là cách yêu cầu 'Respond ONLY with valid JSON', dựa hoàn toàn vào câu lệnh.",
+            "explanationIncorrect": "Structured outputs là ép schema ở tầng API chứ không phải thông qua prompt, còn XML tags là định dạng thẻ chứ không phải phương pháp prompt trực tiếp yêu cầu JSON.",
+            "citation": "Trang 28"
+          }
+        ],
+        "skippedTopics": [
+          {
+            "difficulty": "easy",
+            "reason": "Tài liệu chỉ có một đoạn ngắn ở Trang 28, không đủ chi tiết để sinh thêm câu hỏi mức độ dễ thứ hai."
+          },
+          {
+            "difficulty": "medium",
+            "reason": "Tài liệu quá ngắn và chỉ cung cấp đủ ý cho một câu hỏi ở mức độ trung bình."
+          },
+          {
+            "difficulty": "hard",
+            "reason": "Tài liệu không cung cấp đủ thông tin chi tiết hoặc phức tạp để sinh thêm câu hỏi mức khó thứ hai mà không bịa đặt."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "GS-14",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "hiếm",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "questions": [
+          {
+            "difficulty": "easy",
+            "question": "Thành phần nào đóng vai trò là Lõi (Reasoning) trong kiến trúc Agent?",
+            "options": [
+              "LLM Core",
+              "User input",
+              "API / Search",
+              "Store / DB"
+            ],
+            "correctIndex": 0,
+            "explanationCorrect": "Theo tài liệu, Reasoning (LLM Core) đóng vai trò là lõi suy luận của Agent.",
+            "explanationIncorrect": "User input là phần Perception, API/Search là phần Action, còn Store/DB là Long-term Memory.",
+            "citation": "Trang 17"
+          },
+          {
+            "difficulty": "easy",
+            "question": "Thành phần nào thuộc về Short-term Memory của Agent theo tài liệu?",
+            "options": [
+              "Context window",
+              "Store / DB",
+              "User input",
+              "Final answer"
+            ],
+            "correctIndex": 0,
+            "explanationCorrect": "Tài liệu nêu rõ Short-term Memory chính là Context window.",
+            "explanationIncorrect": "Store/DB là Long-term Memory, User input là Perception, Final answer thuộc Action.",
+            "citation": "Trang 17"
+          },
+          {
+            "difficulty": "medium",
+            "question": "Những thành phần nào cấu thành phần Perception của Agent?",
+            "options": [
+              "User input, Tool results",
+              "API, Search, Final answer",
+              "LLM Core và Context window",
+              "Store và Database"
+            ],
+            "correctIndex": 0,
+            "explanationCorrect": "Tài liệu chỉ định rõ Perception bao gồm User input và Tool results.",
+            "explanationIncorrect": "API, Search, Final answer thuộc về Action; Context window thuộc Short-term Memory; Store/DB thuộc Long-term Memory.",
+            "citation": "Trang 17"
+          },
+          {
+            "difficulty": "medium",
+            "question": "Yếu tố nào giúp Agent không bị mất mạch xử lý theo tài liệu?",
+            "options": [
+              "Input từ môi trường, state và memory",
+              "Tool results và Final answer",
+              "LLM Core và API",
+              "Search và Store/DB"
+            ],
+            "correctIndex": 0,
+            "explanationCorrect": "Tài liệu khẳng định: 'Input từ môi trường, state và memory giúp agent không mất mạch.'",
+            "explanationIncorrect": "Các thành phần như Tool results, Final answer hay API không đủ để mô tả toàn bộ cơ chế giữ mạch của Agent như state và memory.",
+            "citation": "Trang 17"
+          },
+          {
+            "difficulty": "hard",
+            "question": "Theo tài liệu, Agent nhận những dữ liệu gì trong phần Perception?",
+            "options": [
+              "Text, tool output, feedback",
+              "Context window, store, database",
+              "API, search, final answer",
+              "State, memory, LLM Core"
+            ],
+            "correctIndex": 0,
+            "explanationCorrect": "Tài liệu mô tả chi tiết phần Perception: 'agent nhận text, tool output, feedback.'",
+            "explanationIncorrect": "Context window, store, database hay state, memory thuộc về các thành phần bộ nhớ hoặc trạng thái khác, không phải là đối tượng đầu vào trực tiếp của Perception được định nghĩa trong câu này.",
+            "citation": "Trang 17"
+          },
+          {
+            "difficulty": "hard",
+            "question": "Thành phần nào sau đây được phân loại vào nhóm Action của Agent?",
+            "options": [
+              "API / Search / Final answer",
+              "User input / Tool results",
+              "Reasoning / LLM Core",
+              "Context window / Store / DB"
+            ],
+            "correctIndex": 0,
+            "explanationCorrect": "Tài liệu liệt kê Action bao gồm: API / Search / Final answer.",
+            "explanationIncorrect": "User input / Tool results là Perception; Reasoning / LLM Core là Lõi; Context window / Store / DB là Memory.",
+            "citation": "Trang 17"
+          }
+        ],
+        "skippedTopics": []
+      }
+    },
+    {
+      "case_id": "GS-15",
+      "target_function": "generateQuestionBank",
+      "difficulty_class": "hiếm",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "questions": [
+          {
+            "difficulty": "easy",
+            "question": "Theo Anthropic, khi xây dựng hệ thống agent, chúng ta nên bắt đầu từ đâu?",
+            "options": [
+              "Từ cấu trúc phức tạp và mạnh mẽ nhất",
+              "Từ cấu trúc đơn giản nhất đủ dùng",
+              "Từ pattern Agent tự quyết nhiều bước",
+              "Từ cấu trúc Orchestrator-Worker"
+            ],
+            "correctIndex": 1,
+            "explanationCorrect": "Tài liệu nêu rõ: 'Bắt đầu từ cấu trúc đơn giản nhất đủ dùng.'",
+            "explanationIncorrect": "Nhiều học viên nghĩ rằng nên chọn ngay pattern mạnh nhất, nhưng tài liệu khuyến nghị bắt đầu từ cấu trúc đơn giản nhất.",
+            "citation": "Trang 15"
+          },
+          {
+            "difficulty": "easy",
+            "question": "Pattern nào được Anthropic đánh giá là mạnh nhưng tốn kém nhất?",
+            "options": [
+              "Augmented LLM",
+              "Prompt Chaining",
+              "Routing",
+              "Agent"
+            ],
+            "correctIndex": 3,
+            "explanationCorrect": "Tài liệu chỉ ra rằng: 'Agent là pattern mạnh nhưng tốn kém nhất.'",
+            "explanationIncorrect": "Học viên thường nhầm lẫn Orchestrator-Worker hoặc các pattern khác là tốn kém nhất, nhưng tài liệu xác định đó là Agent.",
+            "citation": "Trang 15"
+          },
+          {
+            "difficulty": "medium",
+            "question": "Pattern nào trong các lựa chọn sau đây có chức năng chọn đường đi (path) hoặc chuyên gia (specialist)?",
+            "options": [
+              "Routing",
+              "Prompt Chaining",
+              "Augmented LLM",
+              "Agent"
+            ],
+            "correctIndex": 0,
+            "explanationCorrect": "Routing là pattern dùng để 'Chọn path/specialist' theo định nghĩa trong tài liệu.",
+            "explanationIncorrect": "Prompt Chaining chỉ là bước nối tiếp rõ ràng, không phải là việc chọn path hay specialist như Routing.",
+            "citation": "Trang 15"
+          },
+          {
+            "difficulty": "medium",
+            "question": "Pattern nào có đặc điểm là phân việc rồi tổng hợp lại?",
+            "options": [
+              "Augmented LLM",
+              "Routing",
+              "Orchestrator-Worker",
+              "Agent"
+            ],
+            "correctIndex": 2,
+            "explanationCorrect": "Tài liệu định nghĩa Orchestrator-Worker có chức năng 'Phân việc rồi tổng hợp'.",
+            "explanationIncorrect": "Học viên có thể nhầm lẫn với Agent tự quyết nhiều bước, nhưng phân việc rồi tổng hợp là đặc trưng của Orchestrator-Worker.",
+            "citation": "Trang 15"
+          },
+          {
+            "difficulty": "hard",
+            "question": "Theo thứ tự tăng dần về nhu cầu từ tài liệu của Anthropic, thành phần nào kết hợp (Prompt + docs + tools)?",
+            "options": [
+              "Routing",
+              "Augmented LLM",
+              "Prompt Chaining",
+              "Orchestrator-Worker"
+            ],
+            "correctIndex": 1,
+            "explanationCorrect": "Augmented LLM trong tài liệu được định nghĩa gồm (Prompt + docs + tools).",
+            "explanationIncorrect": "Nhiều học viên nhầm lẫn cấu phần này với Prompt Chaining, nhưng Prompt Chaining là bước nối tiếp rõ ràng.",
+            "citation": "Trang 15"
+          }
+        ],
+        "skippedTopics": [
+          {
+            "difficulty": "hard",
+            "reason": "Tài liệu chỉ có 1 trang ngắn ([Trang 15]) với lượng thông tin vừa phải, không đủ nội dung để tạo thêm câu hỏi thứ 2 ở mức độ khó (hard) mà không bịa thêm kiến thức ngoài."
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "GS-16",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "② mơ hồ",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "isQuizRequest": false,
+        "lessonId": null,
+        "requestedCount": null,
+        "needsClarification": false,
+        "clarifyingQuestion": null
+      }
+    },
+    {
+      "case_id": "GS-17",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "② mơ hồ",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "isQuizRequest": false,
+        "lessonId": null,
+        "requestedCount": null,
+        "needsClarification": true,
+        "clarifyingQuestion": "Bạn có muốn làm bài kiểm tra không? Vui lòng chọn Bài 01 (JTBD & Cost-of-error) hoặc Bài 02 (RAG & Grounding)."
+      }
+    },
+    {
+      "case_id": "GS-18",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "thường",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "isQuizRequest": false,
+        "lessonId": null,
+        "requestedCount": null,
+        "needsClarification": true,
+        "clarifyingQuestion": "Bạn muốn tóm tắt nội dung của Bài 01 (JTBD & Cost-of-error) hay Bài 02 (RAG & Grounding)?"
+      }
+    },
+    {
+      "case_id": "GS-19",
+      "target_function": "parseQuizRequestFromChat",
+      "difficulty_class": "③ ngoài phạm vi",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "isQuizRequest": false,
+        "lessonId": null,
+        "requestedCount": null,
+        "needsClarification": true,
+        "clarifyingQuestion": "VLearn hiện không cung cấp sẵn đáp án cho các bài lab. Bạn có muốn làm quiz ôn tập về \"Bài 01: JTBD & Cost-of-error\" không?"
+      }
+    },
+    {
+      "case_id": "GS-20",
+      "target_function": "analyzeQuizResult",
+      "difficulty_class": "④ đặc thù domain",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "weakTopics": [
+          "Công thức lát cắt sản phẩm 1 câu",
+          "Cách xử lý của AI khi thiếu căn cứ trích dẫn"
+        ],
+        "summary": "Dữ liệu bước đầu cho thấy học viên còn nhầm lẫn ở các khái niệm cơ bản về công thức lát cắt sản phẩm và cách xử lý khi AI thiếu căn cứ trích dẫn. Tuy nhiên, kết quả này chưa đủ để kết luận chắc chắn về toàn bộ năng lực vì số lượng câu hỏi còn ít.",
+        "nextMix": {
+          "easy": 3,
+          "medium": 0,
+          "hard": 1
+        }
+      }
+    },
+    {
+      "case_id": "GS-21",
+      "target_function": "analyzeQuizResult",
+      "difficulty_class": "hiếm",
+      "status": "PASS",
+      "issues": [],
+      "output": {
+        "weakTopics": [],
+        "summary": "Kết quả bước đầu cho thấy học viên đã trả lời đúng tất cả các câu hỏi trong bài Active Recall Quiz này. Tuy nhiên, do số lượng câu hỏi còn ít, dữ liệu này chưa đủ để kết luận chắc chắn về toàn bộ mức độ nắm bắt kiến thức của học viên.",
+        "nextMix": {
+          "easy": 0,
+          "medium": 0,
+          "hard": 3
+        }
+      }
+    }
+  ]
+}

@@ -11,7 +11,6 @@
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
-const https = require('https');
 require('dotenv').config();
 
 const app = express();
@@ -92,68 +91,14 @@ const KNOWLEDGE_TOPICS = [
 ];
 
 /* ==========================================================================
-   HELPER: GEMINI LLM API REST CALL
+   GHI CHÚ KIẾN TRÚC: server.js KHÔNG gọi Gemini trực tiếp.
+   Mọi lời gọi AI thật (sinh kho câu hỏi, phân tích kết quả, hiểu ý định chat)
+   nằm ở codebase/ai-service.js, chạy trong trình duyệt. server.js chỉ đóng
+   vai trò lưu trữ/truy xuất PostgreSQL cho dữ liệu FE đã xử lý xong.
+   (Trước đây file này có hàm callGeminiApi() gọi model "gemini-1.5-flash" —
+   đã gỡ vì trùng lặp và dùng model không còn khả dụng, gây nhầm lẫn 2 nguồn
+   AI khác nhau cho cùng một tính năng.)
    ========================================================================== */
-async function callGeminiApi(prompt, systemInstruction = '', apiKeyOverride = '') {
-  const apiKey = apiKeyOverride || process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY chưa được cung cấp.');
-  }
-
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-  const payload = {
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: prompt }]
-      }
-    ]
-  };
-
-  if (systemInstruction) {
-    payload.systemInstruction = {
-      parts: [{ text: systemInstruction }]
-    };
-  }
-
-  const payloadData = JSON.stringify(payload);
-
-  return new Promise((resolve, reject) => {
-    const url = new URL(endpoint);
-    const options = {
-      hostname: url.hostname,
-      path: url.pathname + url.search,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payloadData)
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let body = '';
-      res.on('data', (chunk) => body += chunk);
-      res.on('end', () => {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          try {
-            const parsed = JSON.parse(body);
-            const textResponse = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            resolve(textResponse);
-          } catch (e) {
-            reject(new Error('Lỗi parse phản hồi từ Gemini API: ' + e.message));
-          }
-        } else {
-          reject(new Error(`Gemini API Error (${res.statusCode}): ${body}`));
-        }
-      });
-    });
-
-    req.on('error', (e) => reject(e));
-    req.write(payloadData);
-    req.end();
-  });
-}
 
 /* ==========================================================================
    1. HEALTH CHECK ENDPOINT
@@ -167,9 +112,7 @@ app.get('/api/health', (req, res) => {
       connected: isDbConnected,
       mode: isDbConnected ? 'PostgreSQL Active (vlearn schema)' : 'Fallback LocalStorage/Memory'
     },
-    ai: {
-      geminiKeyPresent: !!process.env.GEMINI_API_KEY
-    }
+    note: 'Server này không gọi AI — lời gọi AI thật nằm ở codebase/ai-service.js (trình duyệt).'
   });
 });
 
@@ -228,67 +171,20 @@ app.post('/api/documents/save', async (req, res) => {
 });
 
 /* ==========================================================================
-   3. QUIZ GENERATION & PERSISTENCE ENDPOINT: /api/quiz/generate
+   3. QUIZ PERSISTENCE ENDPOINT: /api/quiz/generate
+   Lưu ý: endpoint này KHÔNG tự sinh câu hỏi bằng AI nữa. FE phải tự gọi
+   VLearnAI.generateQuestionBank() (codebase/ai-service.js) ở trình duyệt để
+   có bộ câu hỏi thật, rồi gửi kết quả đã sinh xong sang đây chỉ để lưu vào
+   PostgreSQL. Nếu FE gửi lên mà không kèm quiz, dùng bộ mô phỏng cục bộ để
+   không chặn demo (không phải AI thật — đánh dấu rõ trong "mode").
    ========================================================================== */
 app.post('/api/quiz/generate', async (req, res) => {
-  const { extractedText, lessonTitle, count = 4, difficulty = 'medium', apiKey } = req.body;
+  const { lessonTitle, count = 4, difficulty = 'medium', quiz: clientGeneratedQuiz } = req.body;
 
-  let quizList = [];
-  let isAiGenerated = false;
+  let quizList = Array.isArray(clientGeneratedQuiz) ? clientGeneratedQuiz : [];
+  const isAiGenerated = quizList.length > 0;
 
-  try {
-    if (process.env.GEMINI_API_KEY || apiKey) {
-      const systemInstruction = `Bạn là chuyên gia giảng dạy AI Product thuộc nền tảng VLearn. 
-Nhiệm vụ của bạn là đọc tài liệu PDF bài giảng được cung cấp và tạo ra một bộ câu hỏi kiểm tra Active Recall đúng định dạng JSON.
-Mỗi câu hỏi PHẢI thuộc 1 trong 4 topicTag: "jtbd", "grounding", "automation", "eval".
-Lời giải thích PHẢI có trích dẫn số trang nguyên văn dưới dạng [Trang N].
-CHỈ TRẢ VỀ DUY NHẤT CHUỖI JSON MẢNG CÁC OBJECT, KHÔNG KÈM MARKDOWN CỤM CODEBLOCK \`\`\`json.`;
-
-      const prompt = `Bài giảng: ${lessonTitle || 'Tài liệu VLearn'}
-Nội dung tài liệu PDF bài giảng:
-"""
-${(extractedText || '').substring(0, 15000)}
-"""
-
-Hãy tạo ${count} câu hỏi kiểm tra Active Recall với độ khó "${difficulty}".
-Định dạng JSON mảng các object như sau:
-[
-  {
-    "id": 1,
-    "type": "single",
-    "topicTag": "jtbd",
-    "question": "Câu hỏi trắc nghiệm dựa vào tài liệu...",
-    "options": ["A. Lựa chọn 1", "B. Lựa chọn 2", "C. Lựa chọn 3", "D. Lựa chọn 4"],
-    "correctAnswer": 0,
-    "explanation": "Giải thích chi tiết kèm trích dẫn [Trang N]..."
-  },
-  {
-    "id": 2,
-    "type": "short_answer",
-    "topicTag": "automation",
-    "question": "Câu hỏi tự luận ngắn kiểm tra khái niệm...",
-    "modelAnswer": "Gợi ý đáp án chuẩn ngắn gọn...",
-    "keywords": ["từ khóa 1", "từ khóa 2"],
-    "explanation": "Giải thích chi tiết kèm trích dẫn [Trang N]..."
-  }
-]`;
-
-      const aiResponse = await callGeminiApi(prompt, systemInstruction, apiKey);
-      
-      let cleanedJson = aiResponse.trim();
-      if (cleanedJson.startsWith('```json')) cleanedJson = cleanedJson.replace(/^```json/, '');
-      if (cleanedJson.startsWith('```')) cleanedJson = cleanedJson.replace(/^```/, '');
-      if (cleanedJson.endsWith('```')) cleanedJson = cleanedJson.replace(/```$/, '');
-      cleanedJson = cleanedJson.trim();
-
-      quizList = JSON.parse(cleanedJson);
-      isAiGenerated = true;
-    }
-  } catch (err) {
-    console.warn('[AI Generation Fallback Triggered]:', err.message);
-  }
-
-  if (!isAiGenerated || quizList.length === 0) {
+  if (quizList.length === 0) {
     quizList = generateSmartFallbackQuiz(lessonTitle, count, difficulty);
   }
 
@@ -318,38 +214,18 @@ Hãy tạo ${count} câu hỏi kiểm tra Active Recall với độ khó "${diff
 });
 
 /* ==========================================================================
-   4. AI TUTOR CHAT ENDPOINT: /api/tutor/chat
+   4. TUTOR CHAT ENDPOINT: /api/tutor/chat
+   Lưu ý: endpoint này KHÔNG gọi AI (đã gỡ callGeminiApi trùng lặp). Trả lời
+   mở (open-ended Q&A) không nằm trong 3 quyết định AI mà ai-service.js đảm
+   nhận (generateQuestionBank / analyzeQuizResult / parseQuizRequestFromChat)
+   nên tạm thời chỉ trả lời bằng mẫu cố định, đánh dấu rõ grounded:false để
+   FE không hiển thị nhầm như câu trả lời AI có căn cứ thật.
    ========================================================================== */
 app.post('/api/tutor/chat', async (req, res) => {
-  const { query, lessonText, lessonTitle, apiKey } = req.body;
+  const { query, lessonTitle } = req.body;
 
   if (!query) {
     return res.status(400).json({ error: 'Nội dung câu hỏi không được để trống' });
-  }
-
-  try {
-    if (process.env.GEMINI_API_KEY || apiKey) {
-      const systemInstruction = `Bạn là Trợ lý AI Tutor trên nền tảng VLearn.
-Nhiệm vụ của bạn là trả lời thắc mắc của học viên dựa TRỰC TIẾP vào tài liệu bài giảng được cung cấp.
-NGUYÊN TẮC HAX/PAIR BẮT BUỘC:
-1. Mọi câu trả lời PHẢI có trích dẫn số trang [Trang N] từ bài giảng.
-2. Khi gặp câu hỏi nằm NGOÀI nội dung bài giảng, trả lời rõ ràng: "Nội dung này không nằm trong bài lý thuyết [Tên bài]. Bạn có muốn nối máy tới TA?"
-3. Tuyệt đối KHÔNG bịa đặt đáp án khi tài liệu không có thông tin (Grounding Guardrail).
-4. Nếu học viên yêu cầu sửa điểm bài quiz hoặc truy cập bài test chính thức -> Trả lời từ chối theo thẩm quyền: "Mình chỉ hỗ trợ giải đáp Active Recall, không có thẩm quyền truy cập hay thay đổi điểm bài test chính thức."`;
-
-      const prompt = `Bài giảng: ${lessonTitle || 'Bài lý thuyết VLearn'}
-Nội dung bài giảng PDF:
-"""
-${(lessonText || '').substring(0, 10000)}
-"""
-
-Câu hỏi của học viên: "${query}"`;
-
-      const aiReply = await callGeminiApi(prompt, systemInstruction, apiKey);
-      return res.json({ success: true, reply: aiReply, grounded: true });
-    }
-  } catch (err) {
-    console.warn('[AI Tutor Fallback Triggered]:', err.message);
   }
 
   const fallbackReply = generateFallbackChatReply(query, lessonTitle);
