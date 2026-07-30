@@ -18,6 +18,8 @@
   <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
   </script>
+  <!-- Tesseract.js is loaded only for OCR fallback on scanned PDF pages -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js"></script>
 
   <!-- Custom Styles -->
   <link rel="stylesheet" href="styles.css">
@@ -174,12 +176,13 @@
               
               <div class="quiz-controls">
                 <div class="form-group">
-                  <label class="form-label">Mức độ khó của bài test</label>
-                  <select id="difficultySelect" class="form-select">
-                    <option value="medium">Trung bình (Hiểu & Vận dụng khái niệm)</option>
-                    <option value="easy">Cơ bản (Nhận biết định nghĩa & Thuật ngữ)</option>
-                    <option value="hard">Nâng cao (Phân tích case study & Cost-of-error)</option>
-                    <option value="adaptive" id="adaptiveDifficultyOption">Thích ứng theo lịch sử (AI đề xuất)</option>
+                  <label class="form-label"><i class="ri-sparkles-line" style="color:var(--warning);"></i> Mức độ câu hỏi (Ép buộc dùng AI chọn câu)</label>
+                  <div style="background: rgba(19, 77, 139, 0.08); border: 1px dashed var(--primary); padding: 0.75rem 1rem; border-radius: var(--radius-md); font-size: 0.88rem; color: var(--primary); font-weight: 600; display: flex; align-items: center; gap: 0.6rem;">
+                    <i class="ri-brain-line" style="font-size: 1.1rem; color: var(--primary);"></i>
+                    <span>AI tự động phân tích bài học & đề xuất độ khó tối ưu cho từng câu</span>
+                  </div>
+                  <select id="difficultySelect" class="form-select" style="display: none;">
+                    <option value="adaptive" selected>Thích ứng theo lịch sử (AI đề xuất)</option>
                   </select>
                 </div>
 
@@ -272,8 +275,8 @@
                 <div class="card-title">
                   <i class="ri-radar-line" style="color:var(--primary)"></i> Bản Đồ Phân Tích Lỗ Hổng Kiến Thức
                 </div>
-                <button class="btn btn-secondary" style="font-size:0.8rem; padding:0.4rem 0.8rem;" onclick="clearHistory()">
-                  <i class="ri-delete-bin-line"></i> Xóa Lịch Sử
+                <button class="btn btn-secondary" style="font-size:0.8rem; padding:0.4rem 0.8rem;" onclick="syncLearnerHistoryFromBackend()">
+                  <i class="ri-refresh-line"></i> Đồng Bộ Lịch Sử
                 </button>
               </div>
               <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1.25rem;">
@@ -430,8 +433,8 @@
               <div class="stat-icon icon-blue"><i class="ri-team-line"></i></div>
               <div class="stat-info">
                 <span class="stat-label">Tổng Học Viên Class K3</span>
-                <h3 class="stat-value" id="adminTotalStudents">1,024</h3>
-                <span class="stat-sub text-success"><i class="ri-arrow-up-line"></i> +12% tuần này</span>
+                <h3 class="stat-value" id="adminTotalStudents">0</h3>
+                <span class="stat-sub text-muted">Chưa có dữ liệu học viên</span>
               </div>
             </div>
 
@@ -439,8 +442,8 @@
               <div class="stat-icon icon-purple"><i class="ri-pulse-line"></i></div>
               <div class="stat-info">
                 <span class="stat-label">Tổng Quiz Đã Tự Động Sinh</span>
-                <h3 class="stat-value" id="adminTotalQuizzes">15,420</h3>
-                <span class="stat-sub text-muted">~15 bài / học viên</span>
+                <h3 class="stat-value" id="adminTotalQuizzes">0</h3>
+                <span class="stat-sub text-muted">Chờ lượt làm bài thật</span>
               </div>
             </div>
 
@@ -448,8 +451,8 @@
               <div class="stat-icon icon-green"><i class="ri-award-line"></i></div>
               <div class="stat-info">
                 <span class="stat-label">Điểm Trung Bình Toàn Lớp</span>
-                <h3 class="stat-value" id="adminClassAvg">78.5%</h3>
-                <span class="stat-sub text-success"><i class="ri-check-double-line"></i> Đạt Quality Bar >= 75%</span>
+                <h3 class="stat-value" id="adminClassAvg">0%</h3>
+                <span class="stat-sub text-muted">Chưa có dữ liệu làm bài</span>
               </div>
             </div>
 
@@ -457,8 +460,8 @@
               <div class="stat-icon icon-red"><i class="ri-alarm-warning-line"></i></div>
               <div class="stat-info">
                 <span class="stat-label">Học Viên Cảnh Báo Lỗ Hổng</span>
-                <h3 class="stat-value" style="color:var(--danger);" id="adminAtRiskCount">146 HV</h3>
-                <span class="stat-sub text-danger">Tỷ lệ hổng kiến thức > 30%</span>
+                <h3 class="stat-value" style="color:var(--text-muted);" id="adminAtRiskCount">0 HV</h3>
+                <span class="stat-sub text-muted">Chưa ghi nhận rủi ro</span>
               </div>
             </div>
           </div>
@@ -496,7 +499,7 @@
                   <div class="action-icon"><i class="ri-notification-3-line"></i></div>
                   <div>
                     <h5 style="font-size:0.92rem; font-weight:700;">Gửi Thông Báo Ôn Tập Tự Động</h5>
-                    <p style="font-size:0.8rem; color:var(--text-muted);">Gửi nhắc nhở và bài quiz củng cố cho 146 học viên có nguy cơ hổng kiến thức.</p>
+                    <p style="font-size:0.8rem; color:var(--text-muted);">Chuẩn bị nhắc nhở và bài quiz củng cố cho các học viên được phát hiện cần cải thiện.</p>
                   </div>
                 </div>
 

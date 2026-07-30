@@ -86,7 +86,7 @@ notepad .env
 
 ```dotenv
 GEMINI_API_KEY=your_real_key_here
-GEMINI_MODEL=gemini-3.6-flash
+GEMINI_MODEL=gemini-3.5-flash-lite
 ```
 
 Runner tìm `.env` ở cả thư mục gốc và `codebase/`. File `.env` đã được
@@ -96,7 +96,7 @@ Có thể cấu hình key chỉ cho terminal hiện tại mà không tạo file:
 
 ```powershell
 $env:GEMINI_API_KEY = "your_real_key_here"
-$env:GEMINI_MODEL = "gemini-3.6-flash"
+$env:GEMINI_MODEL = "gemini-3.5-flash-lite"
 ```
 
 ## 4. Kiểm tra golden set offline
@@ -141,7 +141,7 @@ Khi kết nối thành công:
 ```json
 {
   "connected": true,
-  "model": "gemini-3.6-flash"
+  "model": "gemini-3.5-flash-lite"
 }
 ```
 
@@ -275,7 +275,7 @@ có dấu cách trước tên biến.
 Model trong `GEMINI_MODEL` không tồn tại hoặc không được API key hỗ trợ. Thử:
 
 ```dotenv
-GEMINI_MODEL=gemini-3.6-flash
+GEMINI_MODEL=gemini-3.5-flash-lite
 ```
 
 ### Gemini trả HTTP 401 hoặc 403
