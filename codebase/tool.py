@@ -30,7 +30,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
-DEFAULT_MODEL = "gemini-3.6-flash"
+DEFAULT_MODEL = "gemini-3.5-flash-lite"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
 DEFAULT_ENV_PATH = os.path.join(REPO_ROOT, ".env")

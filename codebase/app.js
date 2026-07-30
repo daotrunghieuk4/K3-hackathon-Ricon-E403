@@ -15,6 +15,12 @@ function readJsonStorage(key, fallback) {
   }
 }
 
+function removeLegacySampleHistory(history) {
+  return (Array.isArray(history) ? history : []).filter(attempt =>
+    !(attempt.id === "ATT-1001" && attempt.lessonTitle === "Bài 01: Nhập môn AI Product (JTBD)")
+  );
+}
+
 function createClientSourceId() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
   const bytes = new Uint8Array(16);
@@ -25,43 +31,64 @@ function createClientSourceId() {
   return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10).join("")}`;
 }
 
+function getOrCreateLearnerIdentity() {
+  let learnerKey = localStorage.getItem("VLEARN_LEARNER_KEY");
+  if (!learnerKey) {
+    learnerKey = createClientSourceId();
+    localStorage.setItem("VLEARN_LEARNER_KEY", learnerKey);
+  }
+  let learnerName = localStorage.getItem("VLEARN_LEARNER_NAME");
+  if (!learnerName) {
+    learnerName = `Học viên ${learnerKey.slice(0, 8)}`;
+    localStorage.setItem("VLEARN_LEARNER_NAME", learnerName);
+  }
+  return { learnerKey, learnerName };
+}
+
+function buildInitialBalancedMix(total) {
+  const safeTotal = Math.max(1, Number.parseInt(total, 10) || 1);
+  const base = Math.floor(safeTotal / 3);
+  const mix = { easy: base, medium: base, hard: base };
+  const remainderOrder = ["medium", "easy", "hard"];
+  for (let index = 0; index < safeTotal - base * 3; index++) {
+    mix[remainderOrder[index]] += 1;
+  }
+  return mix;
+}
+
+const learnerIdentity = getOrCreateLearnerIdentity();
+
 // Application State
 const state = {
   currentFile: null,
   extractedText: "",
   currentSourceId: "",
   currentQuestionBankId: "",
+  learnerKey: learnerIdentity.learnerKey,
+  learnerName: learnerIdentity.learnerName,
   currentLessonTitle: "Bài 01: Nhập môn AI Product (JTBD)",
   activeQuiz: [],
   userAnswers: {},
   currentRole: "user",
   apiKey: localStorage.getItem("VLEARN_GEMINI_KEY") || "",
-  history: readJsonStorage("VLEARN_QUIZ_HISTORY", []),
+  history: removeLegacySampleHistory(readJsonStorage("VLEARN_QUIZ_HISTORY", [])),
   recommendedMix: readJsonStorage("VLEARN_RECOMMENDED_MIX", null),
   latestAnalysis: readJsonStorage("VLEARN_LATEST_ANALYSIS", null),
-  latestAnalysisMode: localStorage.getItem("VLEARN_ANALYSIS_MODE") || ""
+  latestAnalysisMode: localStorage.getItem("VLEARN_ANALYSIS_MODE") || "",
+  adminOverview: null,
+  adminStudents: []
 };
-
-// Default Knowledge Topics Registry for Analytics
-const KNOWLEDGE_TOPICS = [
-  { id: "jtbd", name: "JTBD & Lát Cắt Sản Phẩm", desc: "Định hình bài toán: 1 người dùng · 1 công việc · 1 quyết định AI · 1 kết quả" },
-  { id: "grounding", name: "Grounding & Chống Bịạ Nguồn", desc: "Kiểm soát Hallucination, trích dẫn bắt buộc mã trang [Txx-NNN]" },
-  { id: "automation", name: "Cost-of-error & Mức Automation", desc: "Lựa chọn giữa Augment, Conditional và Automate theo chi phí lỗi" },
-  { id: "eval", name: "Golden Set & Đo Lường Chất Lượng", desc: "Xây dựng 20 cases kiểm thử và định nghĩa Quality Bar" }
-];
 
 // Initialize Application on DOM Ready
 document.addEventListener("DOMContentLoaded", () => {
   console.log("VLearn AI LMS App Initialized");
   loadInitialData();
   setupDragAndDrop();
+  saveHistoryToStorage();
 
-  // If no history exists, pre-seed 1 sample record for rich UI demo
-  if (state.history.length === 0) {
-    seedInitialHistory();
-  }
   renderHistoryAndGapMap();
   renderAdaptiveRecommendation(state.latestAnalysis, state.latestAnalysisMode);
+  syncLearnerHistoryFromBackend();
 });
 
 function loadInitialData() {
@@ -142,6 +169,30 @@ function saveHistoryToStorage() {
   localStorage.setItem("VLEARN_QUIZ_HISTORY", JSON.stringify(state.history));
 }
 
+async function syncLearnerHistoryFromBackend() {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/analytics/gaps?learnerKey=${encodeURIComponent(state.learnerKey)}`
+    );
+    if (!response.ok) return;
+    const data = await response.json();
+    if (Array.isArray(data.history) && data.history.length > 0) {
+      state.history = data.history;
+      saveHistoryToStorage();
+      const latest = data.history[0];
+      if (latest.adaptiveAnalysis?.nextMix) {
+        state.latestAnalysis = latest.adaptiveAnalysis;
+        state.latestAnalysisMode = latest.analysisMode || "Stored Analysis";
+        state.recommendedMix = latest.adaptiveAnalysis.nextMix;
+      }
+      renderHistoryAndGapMap();
+      renderAdaptiveRecommendation(state.latestAnalysis, state.latestAnalysisMode);
+    }
+  } catch (error) {
+    console.warn("Không thể đồng bộ lịch sử từ backend:", error);
+  }
+}
+
 function clearHistory() {
   if (confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử nộp bài và dữ liệu lỗ hổng kiến thức?")) {
     state.history = [];
@@ -202,6 +253,56 @@ function handleFileSelect(event) {
   }
 }
 
+function extractNativePageText(textContent) {
+  const lines = [];
+  let currentLine = "";
+  for (const item of textContent.items || []) {
+    const value = String(item.str || "").trim();
+    if (value) currentLine = `${currentLine} ${value}`.trim();
+    if (item.hasEOL && currentLine) {
+      lines.push(currentLine);
+      currentLine = "";
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+  return lines.join("\n").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+async function extractPageTextWithOcr(page, pageNum, onProgress) {
+  const textContent = await page.getTextContent();
+  const nativeText = extractNativePageText(textContent);
+  if (nativeText.length >= 40) {
+    return { text: nativeText, usedOcr: false };
+  }
+  if (!window.Tesseract) {
+    throw new Error(`Trang ${pageNum} gần như không có lớp chữ và thư viện OCR chưa tải được. Hãy kiểm tra kết nối mạng rồi thử lại.`);
+  }
+
+  const viewport = page.getViewport({ scale: 2 });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  await page.render({ canvasContext: context, viewport }).promise;
+  const result = await window.Tesseract.recognize(canvas, "vie+eng", {
+    logger: message => {
+      if (message.status === "recognizing text" && typeof onProgress === "function") {
+        onProgress(Math.round((message.progress || 0) * 100));
+      }
+    }
+  });
+  canvas.width = 1;
+  canvas.height = 1;
+  const ocrText = String(result?.data?.text || "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return {
+    text: ocrText.length > nativeText.length ? ocrText : nativeText,
+    usedOcr: true
+  };
+}
+
 async function processPdfFile(file) {
   if (file.type !== "application/pdf") {
     alert("Vui lòng tải lên file định dạng .PDF!");
@@ -248,22 +349,33 @@ async function processPdfFile(file) {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     
-    let fullText = "";
+    const pageSections = [];
+    let ocrPageCount = 0;
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
       const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items.map(item => item.str).join(" ");
-      fullText += ` [Trang ${pageNum}] ` + pageText;
+      if (dropzoneSubtitle) {
+        dropzoneSubtitle.innerText = `Đang đọc trang ${pageNum}/${pdf.numPages}...`;
+      }
+      const extracted = await extractPageTextWithOcr(page, pageNum, progress => {
+        if (dropzoneSubtitle) {
+          dropzoneSubtitle.innerText = `Đang OCR trang ${pageNum}/${pdf.numPages}: ${progress}%`;
+        }
+      });
+      if (extracted.usedOcr) ocrPageCount += 1;
+      pageSections.push(`[Trang ${pageNum}]\n${extracted.text}`);
     }
+    const fullText = pageSections.join("\n\n");
 
     if (fullText.trim().length < 80) {
-      throw new Error("PDF không có đủ văn bản có thể trích xuất. Nếu đây là PDF scan, cần OCR trước khi tải lên.");
+      throw new Error("PDF không có đủ nội dung đọc được sau khi trích xuất và OCR.");
     }
 
     state.extractedText = fullText;
     const difficulty = document.getElementById("difficultySelect")?.value || "medium";
     const count = Number.parseInt(document.getElementById("questionCountSelect")?.value, 10) || 4;
-    const difficultyMix = difficulty === "adaptive" ? state.recommendedMix : null;
+    const difficultyMix = difficulty === "adaptive"
+      ? (state.recommendedMix || buildInitialBalancedMix(count))
+      : null;
     const response = await fetch(`${API_BASE_URL}/question-banks/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -272,6 +384,10 @@ async function processPdfFile(file) {
         lessonTitle,
         originalFilename: file.name,
         extractedText: fullText,
+        extractionMeta: {
+          pageCount: pdf.numPages,
+          ocrPageCount
+        },
         count,
         difficulty,
         difficultyMix
@@ -290,7 +406,9 @@ async function processPdfFile(file) {
     sessionStorage.setItem("VLEARN_ACTIVE_QUESTION_BANK_ID", state.currentQuestionBankId);
 
     if (dropzoneSubtitle) {
-      dropzoneSubtitle.innerText = `Đã tạo ${data.questionCount} câu mới từ đúng PDF này · ${data.savedToDb ? "đã lưu PostgreSQL" : "đang lưu tạm trên server"}`;
+      const ocrText = ocrPageCount ? ` · OCR ${ocrPageCount}/${pdf.numPages} trang` : "";
+      const chunkText = data.semanticChunkCount ? ` · ${data.semanticChunkCount} semantic chunks` : "";
+      dropzoneSubtitle.innerText = `Đã tạo ${data.questionCount} câu mới từ đúng PDF này${chunkText}${ocrText} · ${data.savedToDb ? "đã lưu PostgreSQL" : "đang lưu tạm trên server"}`;
     }
     if (statusBadge) {
       statusBadge.innerText = "Kho câu hỏi mới đã sẵn sàng";
@@ -318,7 +436,9 @@ async function processPdfFile(file) {
 async function generateQuiz() {
   const difficulty = document.getElementById("difficultySelect").value;
   const count = parseInt(document.getElementById("questionCountSelect").value);
-  const difficultyMix = difficulty === "adaptive" ? state.recommendedMix : null;
+  const difficultyMix = difficulty === "adaptive"
+    ? (state.recommendedMix || buildInitialBalancedMix(count))
+    : null;
 
   if (!state.currentSourceId || !state.currentQuestionBankId || !state.extractedText) {
     alert("Hãy tải PDF và chờ AI tạo xong kho câu hỏi mới trước khi tạo bài kiểm tra.");
@@ -586,7 +706,10 @@ async function submitQuiz() {
         activeQuiz: state.activeQuiz,
         lessonTitle: state.currentLessonTitle,
         difficulty: newAttempt.difficulty,
-        history: previousHistory.slice(0, 9)
+        history: previousHistory.slice(0, 9),
+        learnerKey: state.learnerKey,
+        learnerName: state.learnerName,
+        questionBankId: state.currentQuestionBankId
       })
     });
 
@@ -595,6 +718,10 @@ async function submitQuiz() {
       if (data.analysis && data.analysis.nextMix) {
         analysis = data.analysis;
         analysisMode = data.analysisMode || "AI Generated";
+        newAttempt.id = data.attempt?.id || newAttempt.id;
+        newAttempt.improvementSuggestions = data.improvementSuggestions || {};
+        newAttempt.adaptiveAnalysis = data.analysis;
+        newAttempt.analysisMode = analysisMode;
       }
     }
   } catch (error) {
@@ -604,6 +731,14 @@ async function submitQuiz() {
   state.latestAnalysis = analysis;
   state.latestAnalysisMode = analysisMode;
   state.recommendedMix = analysis.nextMix;
+  newAttempt.improvementSuggestions ||= {
+    weakTopics: analysis.weakTopics || [],
+    summary: analysis.summary || "",
+    reasoning: analysis.reasoning || ""
+  };
+  newAttempt.adaptiveAnalysis ||= analysis;
+  newAttempt.analysisMode ||= analysisMode;
+  saveHistoryToStorage();
   localStorage.setItem("VLEARN_LATEST_ANALYSIS", JSON.stringify(analysis));
   localStorage.setItem("VLEARN_ANALYSIS_MODE", analysisMode);
   localStorage.setItem("VLEARN_RECOMMENDED_MIX", JSON.stringify(analysis.nextMix));
@@ -837,69 +972,81 @@ function renderHistoryAndGapMap() {
     `).join('');
   }
 
-  // 2. Compute Topic Gap Percentages
-  const topicStats = {
-    jtbd: { missed: 0, total: 0 },
-    grounding: { missed: 0, total: 0 },
-    automation: { missed: 0, total: 0 },
-    eval: { missed: 0, total: 0 }
-  };
-
-  state.history.forEach(att => {
-    att.missedTopics.forEach(tId => {
-      if (topicStats[tId]) {
-        topicStats[tId].missed += 1;
-      }
+  // 2. Compute dynamic topics created by AI for the current PDF.
+  const topicStats = {};
+  state.history.forEach(attempt => {
+    const uniqueTopics = new Set(
+      (attempt.missedTopics || []).map(topic => String(topic || "").trim()).filter(Boolean)
+    );
+    uniqueTopics.forEach(topic => {
+      topicStats[topic] ??= { missed: 0 };
+      topicStats[topic].missed += 1;
     });
-    // Add totals
-    Object.keys(topicStats).forEach(key => topicStats[key].total += 1);
   });
 
-  // Render Gap Cards
-  gapContainer.innerHTML = KNOWLEDGE_TOPICS.map(topic => {
-    const stat = topicStats[topic.id] || { missed: 0, total: 1 };
-    const gapPct = state.history.length > 0 ? Math.min(100, Math.round((stat.missed / state.history.length) * 100)) : 0;
-    const isHigh = gapPct > 30;
+  const dynamicTopics = Object.entries(topicStats)
+    .map(([name, stat]) => ({
+      name,
+      gapPct: state.history.length
+        ? Math.min(100, Math.round((stat.missed / state.history.length) * 100))
+        : 0
+    }))
+    .sort((left, right) => right.gapPct - left.gapPct);
 
-    return `
-      <div class="gap-card">
-        <div class="gap-header">
-          <span>${topic.name}</span>
-          <span class="gap-pct ${isHigh ? 'high-gap' : 'low-gap'}">
-            ${isHigh ? `Lỗ hổng: ${gapPct}%` : `Vững: ${100 - gapPct}%`}
-          </span>
+  if (dynamicTopics.length === 0) {
+    gapContainer.innerHTML = `<div class="gap-card"><p style="color:var(--text-muted);">Chưa có chủ đề cần cải thiện. Chủ đề sẽ được AI tạo theo nội dung PDF và cập nhật sau mỗi lượt làm bài.</p></div>`;
+  } else {
+    gapContainer.innerHTML = dynamicTopics.map(topic => {
+      const isHigh = topic.gapPct > 30;
+      return `
+        <div class="gap-card">
+          <div class="gap-header">
+            <span>${escapeHtml(topic.name)}</span>
+            <span class="gap-pct ${isHigh ? "high-gap" : "low-gap"}">Cần cải thiện: ${topic.gapPct}%</span>
+          </div>
+          <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:0.6rem;">Chủ đề do AI xác định từ các câu trả lời chưa đúng.</p>
+          <div class="gap-progress-bg">
+            <div class="gap-progress-fill" style="width:${topic.gapPct}%; background:${isHigh ? "var(--danger)" : "var(--warning)"};"></div>
+          </div>
         </div>
-        <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:0.6rem;">${topic.desc}</p>
-        <div class="gap-progress-bg">
-          <div class="gap-progress-fill" style="width: ${isHigh ? gapPct : (100 - gapPct)}%; background: ${isHigh ? 'var(--danger)' : 'var(--success)'};"></div>
+      `;
+    }).join("");
+  }
+
+  // 3. Render the latest stored improvement suggestion.
+  const latestSuggestion = state.history[0]?.improvementSuggestions || {};
+  const weakTopics = Array.isArray(latestSuggestion.weakTopics)
+    ? latestSuggestion.weakTopics
+    : [];
+  if (latestSuggestion.summary || latestSuggestion.reasoning || weakTopics.length > 0) {
+    guideContainer.innerHTML = `
+      <div class="guide-item">
+        <div class="guide-icon"><i class="ri-lightbulb-flash-fill" style="color:var(--warning)"></i></div>
+        <div class="guide-text">
+          <h5>Gợi ý kiến thức cần cải thiện</h5>
+          ${weakTopics.length ? `<p><strong>Ưu tiên:</strong> ${weakTopics.map(escapeHtml).join(", ")}</p>` : ""}
+          ${latestSuggestion.summary ? `<p>${escapeHtml(latestSuggestion.summary)}</p>` : ""}
+          ${latestSuggestion.reasoning ? `<p>${escapeHtml(latestSuggestion.reasoning)}</p>` : ""}
         </div>
       </div>
     `;
-  }).join('');
-
-  // 3. Render Personalized Remediation Advice
-  const highGaps = KNOWLEDGE_TOPICS.filter(t => {
-    const stat = topicStats[t.id];
-    return stat && state.history.length > 0 && (stat.missed / state.history.length) > 0.2;
-  });
-
-  if (highGaps.length === 0) {
+  } else if (dynamicTopics.length === 0) {
     guideContainer.innerHTML = `
       <div class="guide-item">
         <div class="guide-icon"><i class="ri-checkbox-circle-fill" style="color:var(--success)"></i></div>
         <div class="guide-text">
-          <h5>Phong độ ôn tập xuất sắc!</h5>
-          <p>Tất cả các chủ đề cốt lõi đều đạt tỷ lệ nắm vững cao. Bạn có thể sẵn sàng làm các bài quiz nâng cao tiếp theo.</p>
+          <h5>Chưa có gợi ý cải thiện</h5>
+          <p>Hoàn thành một bài quiz để hệ thống lưu và hiển thị gợi ý phù hợp với nội dung PDF.</p>
         </div>
       </div>
     `;
   } else {
-    guideContainer.innerHTML = highGaps.map(g => `
+    guideContainer.innerHTML = dynamicTopics.slice(0, 3).map(topic => `
       <div class="guide-item">
         <div class="guide-icon"><i class="ri-error-warning-fill" style="color:var(--danger)"></i></div>
         <div class="guide-text">
-          <h5>Cần ôn lại: ${g.name}</h5>
-          <p>Hệ thống nhận thấy bạn thường trả lời chưa chính xác phần <strong>${g.desc}</strong>. Khuyên bạn nên mở Widget AI Tutor để hỏi lại khái niệm này hoặc đọc kỹ trang bài giảng tương ứng.</p>
+          <h5>Cần ôn lại: ${escapeHtml(topic.name)}</h5>
+          <p>Đọc lại phần liên quan trong PDF và dùng AI Tutor để yêu cầu giải thích lại khái niệm này.</p>
         </div>
       </div>
     `).join('');
@@ -1008,18 +1155,32 @@ function switchNav(viewName) {
    6. ADMIN DASHBOARD & STUDENT ROSTER LOGIC
    ========================================================================== */
 
-function renderAdminDashboard() {
-  const sample = window.VLEARN_SAMPLE_DATA;
-  if (!sample || !sample.adminMetrics) return;
+async function renderAdminDashboard() {
+  const gapContainer = document.getElementById("adminClassGapContainer");
+  if (gapContainer) {
+    gapContainer.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-muted);">Đang tải dữ liệu thật từ PostgreSQL...</div>`;
+  }
 
-  const metrics = sample.adminMetrics;
+  let metrics;
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/overview`);
+    const data = await response.json();
+    if (!response.ok || !data.success) throw new Error(data.error || "Không tải được dashboard");
+    metrics = data.overview;
+    state.adminOverview = metrics;
+  } catch (error) {
+    console.error("Admin overview unavailable:", error);
+    if (gapContainer) {
+      gapContainer.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--danger);">Không tải được dữ liệu dashboard: ${escapeHtml(error.message)}</div>`;
+    }
+    return;
+  }
   
   document.getElementById("adminTotalStudents").innerText = metrics.totalStudents.toLocaleString();
   document.getElementById("adminTotalQuizzes").innerText = metrics.totalQuizzesGenerated.toLocaleString();
   document.getElementById("adminClassAvg").innerText = `${metrics.classAverageScore}%`;
   document.getElementById("adminAtRiskCount").innerText = `${metrics.atRiskStudentsCount} HV`;
 
-  const gapContainer = document.getElementById("adminClassGapContainer");
   if (!gapContainer) return;
 
   if (!metrics.topicGapDistribution || metrics.topicGapDistribution.length === 0) {
@@ -1028,7 +1189,7 @@ function renderAdminDashboard() {
     gapContainer.innerHTML = metrics.topicGapDistribution.map(t => `
       <div style="display:flex; flex-direction:column; gap:0.35rem;">
         <div style="display:flex; justify-content:space-between; font-size:0.85rem; font-weight:600;">
-          <span>${t.name}</span>
+          <span>${escapeHtml(t.name)}</span>
           <span style="color:${t.gapPct > 25 ? 'var(--danger)' : 'var(--success)'};">${t.gapPct}% học viên yếu (${t.count} HV)</span>
         </div>
         <div class="gap-progress-bg" style="height:10px;">
@@ -1039,11 +1200,24 @@ function renderAdminDashboard() {
   }
 }
 
-function renderAdminStudents(studentsToRender = null) {
+async function renderAdminStudents(studentsToRender = null) {
   const tableBody = document.getElementById("adminStudentsTableBody");
   if (!tableBody) return;
 
-  const students = studentsToRender || window.VLEARN_SAMPLE_DATA.studentsList || [];
+  let students = studentsToRender;
+  if (!students) {
+    tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:2rem;">Đang tải dữ liệu học viên...</td></tr>`;
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/students`);
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.error || "Không tải được học viên");
+      state.adminStudents = data.students || [];
+      students = state.adminStudents;
+    } catch (error) {
+      tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--danger); padding:2rem;">Không tải được dữ liệu: ${escapeHtml(error.message)}</td></tr>`;
+      return;
+    }
+  }
 
   if (students.length === 0) {
     tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:2rem;"><i class="ri-user-unfollow-line" style="font-size:1.5rem; display:block; margin-bottom:0.4rem;"></i>Chưa có dữ liệu học viên trong lớp. Dữ liệu thật sẽ hiển thị tự động khi học viên làm bài quiz.</td></tr>`;
@@ -1063,16 +1237,19 @@ function renderAdminStudents(studentsToRender = null) {
 
     return `
       <tr>
-        <td><strong>#${s.id}</strong></td>
-        <td><strong>${s.name}</strong></td>
-        <td><span class="pill" style="background:#f1f5f9;">${s.class}</span></td>
-        <td>${s.lastActive}</td>
+        <td><strong>#${escapeHtml(String(s.id).slice(0, 8))}</strong></td>
+        <td><strong>${escapeHtml(s.name)}</strong></td>
+        <td><span class="pill" style="background:#f1f5f9;">${escapeHtml(s.class)}</span></td>
+        <td>${escapeHtml(s.lastActive)}</td>
         <td>${s.attempts} lần</td>
         <td><strong style="color: ${s.avgScore >= 75 ? 'var(--success)' : 'var(--danger)'};">${s.avgScore}%</strong></td>
-        <td><span style="font-size:0.82rem; color:var(--text-muted);">${s.riskTopic}</span></td>
+        <td>
+          <span style="font-size:0.82rem; color:var(--text-muted);">${escapeHtml(s.riskTopic)}</span>
+          ${s.improvementSuggestion ? `<small style="display:block; margin-top:0.25rem; color:#64748b;">${escapeHtml(s.improvementSuggestion)}</small>` : ""}
+        </td>
         <td><span class="${badgeClass}">${badgeText}</span></td>
         <td style="text-align:right;">
-          <button class="btn btn-secondary" style="font-size:0.75rem; padding:0.3rem 0.65rem;" onclick="sendRemediationToStudent('${s.id}', '${s.name}')">
+          <button class="btn btn-secondary" style="font-size:0.75rem; padding:0.3rem 0.65rem;" onclick="sendRemediationToStudentById('${escapeHtml(s.id)}')">
             <i class="ri-send-plane-line"></i> Gửi Bài Ôn
           </button>
         </td>
@@ -1085,10 +1262,10 @@ function filterAdminStudents() {
   const query = (document.getElementById("adminStudentSearch")?.value || "").toLowerCase();
   const filterStatus = document.getElementById("adminRiskFilter")?.value || "all";
 
-  let filtered = window.VLEARN_SAMPLE_DATA.studentsList || [];
+  let filtered = state.adminStudents || [];
 
   if (query) {
-    filtered = filtered.filter(s => s.name.toLowerCase().includes(query) || s.id.toLowerCase().includes(query));
+    filtered = filtered.filter(s => s.name.toLowerCase().includes(query) || String(s.id).toLowerCase().includes(query));
   }
 
   if (filterStatus !== "all") {
@@ -1104,12 +1281,19 @@ function resetStudentFilter() {
   renderAdminStudents();
 }
 
+function sendRemediationToStudentById(studentId) {
+  const student = state.adminStudents.find(item => item.id === studentId);
+  if (!student) return;
+  sendRemediationToStudent(student.id, student.name);
+}
+
 function sendRemediationToStudent(studentId, studentName) {
   alert(`Đã tự động gửi bài ôn tập cá nhân hóa & thông báo nhắc nhở qua AI Tutor cho học viên ${studentName} (${studentId})!`);
 }
 
 function triggerClassRemediationNotice() {
-  alert("Hệ thống vừa gửi thông báo & lộ trình ôn tập AI tự động tới 146 học viên có tỷ lệ hổng kiến thức trên 30%!");
+  const atRiskCount = state.adminOverview?.atRiskStudentsCount || 0;
+  alert(`Hệ thống đã chuẩn bị lộ trình ôn tập cho ${atRiskCount} học viên cần cải thiện. Chức năng gửi thông báo thật cần được kết nối dịch vụ nhắn tin.`);
 }
 
 function exportClassReport() {
