@@ -73,6 +73,11 @@ const state = {
   learnerName: learnerIdentity.learnerName,
   currentLessonTitle: "Bài 01: Nhập môn AI Product (JTBD)",
   activeQuiz: [],
+  preGeneratedQuiz: null,
+  preGeneratedDifficulty: "",
+  preGeneratedCount: 0,
+  pdfProcessingPromise: null,
+  isProcessingPdf: false,
   userAnswers: {},
   currentRole: "user",
   apiKey: DEFAULT_OPENROUTER_KEY,
@@ -395,21 +400,22 @@ async function processPdfFile(file) {
       }
 
       state.extractedText = fullText;
-      state.currentQuestionBankId = `QB-CLIENT-${Date.now()}`;
       sessionStorage.setItem("VLEARN_ACTIVE_TEXT", fullText);
       sessionStorage.setItem("VLEARN_ACTIVE_TITLE", lessonTitle);
       sessionStorage.setItem("VLEARN_ACTIVE_FILENAME", file.name);
       sessionStorage.setItem("VLEARN_ACTIVE_SOURCE_ID", state.currentSourceId);
-      sessionStorage.setItem("VLEARN_ACTIVE_QUESTION_BANK_ID", state.currentQuestionBankId);
 
       const difficulty = document.getElementById("difficultySelect")?.value || "medium";
       const count = Number.parseInt(document.getElementById("questionCountSelect")?.value, 10) || 4;
 
-      // Immediately pre-generate quiz in background so clicking button is INSTANT (0s wait)!
-      state.preGeneratedQuiz = generateSmartClientQuiz(fullText, count, difficulty);
+      if (dropzoneSubtitle) {
+        dropzoneSubtitle.innerText = "🤖 AI đang đọc nội dung và tạo ngân hàng câu hỏi...";
+      }
+      if (statusBadge) {
+        statusBadge.innerText = "🤖 Đang tạo câu hỏi bằng AI...";
+      }
 
-      // Async background server sync (non-blocking)
-      fetch(`${API_BASE_URL}/question-banks/generate`, {
+      const response = await fetch(`${API_BASE_URL}/question-banks/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -420,38 +426,43 @@ async function processPdfFile(file) {
           count,
           difficulty
         })
-      }).then(res => res.json()).then(data => {
-        if (data && data.success && data.questionBankId) {
-          state.currentQuestionBankId = data.questionBankId;
-          sessionStorage.setItem("VLEARN_ACTIVE_QUESTION_BANK_ID", data.questionBankId);
-        }
-      }).catch(err => {
-        console.warn("Background server sync skipped:", err.message);
       });
+      const data = await response.json();
+      if (!response.ok || !data?.success || !data.questionBankId) {
+        throw new Error(data?.error || `Backend trả HTTP ${response.status}`);
+      }
+
+      state.currentQuestionBankId = data.questionBankId;
+      state.preGeneratedQuiz = null;
+      state.preGeneratedDifficulty = difficulty;
+      state.preGeneratedCount = count;
+      sessionStorage.setItem("VLEARN_ACTIVE_QUESTION_BANK_ID", data.questionBankId);
 
       if (dropzoneSubtitle) {
-        dropzoneSubtitle.innerText = `✨ Đã sẵn sàng! Bấm "Tạo bài kiểm tra ngay" bên dưới để mở Quiz tức thì (0s)!`;
+        dropzoneSubtitle.innerText = `✨ Ngân hàng ${data.questionCount || count} câu hỏi AI đã sẵn sàng.`;
       }
       if (statusBadge) {
-        statusBadge.innerText = "✨ Kho câu hỏi sẵn sàng (0s)";
+        statusBadge.innerText = "✨ Kho câu hỏi AI sẵn sàng";
         statusBadge.style.background = "#dcfce7";
         statusBadge.style.color = "#15803d";
       }
       const btnClearDropzone = document.getElementById("btnDropzoneClearPdf");
       if (btnClearDropzone) btnClearDropzone.style.display = "inline-flex";
     } catch (err) {
-      console.error("PDF Pre-reading Error:", err);
+      console.error("PDF/AI question bank preparation error:", err);
       state.extractedText = "";
       state.currentQuestionBankId = "";
       state.activeQuiz = [];
       state.preGeneratedQuiz = null;
+      state.preGeneratedDifficulty = "";
+      state.preGeneratedCount = 0;
       if (dropzoneSubtitle) dropzoneSubtitle.innerText = err.message;
       if (statusBadge) {
-        statusBadge.innerText = "Đọc PDF thất bại";
+        statusBadge.innerText = "Chuẩn bị Quiz AI thất bại";
         statusBadge.style.background = "#fee2e2";
         statusBadge.style.color = "#b91c1c";
       }
-      alert(`Không thể đọc PDF này: ${err.message}`);
+      alert(`Không thể chuẩn bị Quiz AI: ${err.message}`);
     } finally {
       state.isProcessingPdf = false;
     }
@@ -467,6 +478,8 @@ function clearActivePdfFile() {
   state.currentQuestionBankId = "";
   state.activeQuiz = [];
   state.preGeneratedQuiz = null;
+  state.preGeneratedDifficulty = "";
+  state.preGeneratedCount = 0;
   state.pdfProcessingPromise = null;
   state.isProcessingPdf = false;
 
@@ -535,8 +548,14 @@ async function generateQuiz() {
     return;
   }
 
-  // INSTANT PATH: If pre-generated quiz is ready, render IMMEDIATELY (0s wait!)
-  if (state.preGeneratedQuiz && state.preGeneratedQuiz.length === count) {
+  // Reuse only a quiz that was previously returned by the AI backend for the
+  // exact same settings. Never substitute a client-generated template.
+  if (
+    state.preGeneratedQuiz &&
+    state.preGeneratedQuiz.length === count &&
+    state.preGeneratedDifficulty === difficulty &&
+    state.preGeneratedCount === count
+  ) {
     renderQuiz(state.preGeneratedQuiz);
     const quizSection = document.getElementById("quizSection");
     if (quizSection) quizSection.scrollIntoView({ behavior: "smooth" });
@@ -547,9 +566,42 @@ async function generateQuiz() {
     return;
   }
 
-  // Fallback generation if count/difficulty changed or pre-generated quiz wasn't generated
   try {
-    const quizList = generateSmartClientQuiz(state.extractedText, count, difficulty);
+    if (btn) {
+      btn.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> Đang lấy câu hỏi AI...`;
+      btn.disabled = true;
+    }
+
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const response = await fetch(`${API_BASE_URL}/quiz/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sourceId: state.currentSourceId,
+        questionBankId: isUuid.test(state.currentQuestionBankId)
+          ? state.currentQuestionBankId
+          : null,
+        extractedText: state.extractedText,
+        originalFilename: state.currentFile?.name || "document.pdf",
+        lessonTitle: state.currentLessonTitle,
+        count,
+        difficulty
+      })
+    });
+    const data = await response.json();
+    if (!response.ok || !data?.success) {
+      throw new Error(data?.error || `Backend trả HTTP ${response.status}`);
+    }
+    if (!Array.isArray(data.quiz) || data.quiz.length !== count) {
+      throw new Error(`Backend trả ${Array.isArray(data.quiz) ? data.quiz.length : 0}/${count} câu hỏi.`);
+    }
+
+    const quizList = data.quiz;
+    state.currentQuestionBankId = data.questionBankId || state.currentQuestionBankId;
+    state.preGeneratedQuiz = quizList;
+    state.preGeneratedDifficulty = difficulty;
+    state.preGeneratedCount = count;
+    sessionStorage.setItem("VLEARN_ACTIVE_QUESTION_BANK_ID", state.currentQuestionBankId);
     state.activeQuiz = quizList;
     renderQuiz(quizList);
     const quizSection = document.getElementById("quizSection");
@@ -563,65 +615,6 @@ async function generateQuiz() {
       btn.disabled = false;
     }
   }
-}
-
-function generateSmartClientQuiz(extractedText, count = 4, difficulty = 'medium') {
-  const text = String(extractedText || '').trim();
-  const pagePattern = /\[Trang\s+(\d+)\]/gi;
-  const pageMatches = [...text.matchAll(pagePattern)];
-  const totalPages = pageMatches.length || 1;
-
-  const lines = text
-    .split('\n')
-    .map(line => line.replace(/\[Trang\s+\d+\]/gi, '').trim())
-    .filter(line => line.length > 20 && !line.startsWith('#'));
-
-  const questions = [];
-  for (let i = 0; i < count; i++) {
-    const pageNum = Math.min(totalPages, Math.floor((i * totalPages) / count) + 1);
-    const lineIndex = Math.min(lines.length - 1, Math.floor((i * lines.length) / count));
-    const sentence = lines[lineIndex] || `Khái niệm bài học số ${i + 1}`;
-
-    let itemDiff = difficulty;
-    if (difficulty === "adaptive") {
-      const latestScore = Number(state.history?.[0]?.scorePct ?? 75);
-      if (latestScore >= 80) {
-        // High score: increase hard questions (50% hard, 30% medium, 20% easy)
-        itemDiff = (i % 2 === 1) ? "hard" : (i === 0 ? "medium" : "hard");
-      } else if (latestScore < 50) {
-        // Low score: decrease hard questions, boost easy questions (60% easy, 30% medium, 10% hard)
-        itemDiff = (i === count - 1) ? "hard" : (i % 2 === 0 ? "easy" : "medium");
-      } else {
-        // Medium score: balanced mix (30% easy, 50% medium, 20% hard)
-        itemDiff = i % 3 === 0 ? "easy" : (i % 3 === 1 ? "medium" : "hard");
-      }
-    }
-
-    questions.push({
-      id: i + 1,
-      type: "single",
-      difficulty: itemDiff,
-      topicTag: `Khái niệm PDF Trang ${pageNum}`,
-      question: `Theo tài liệu bài học (Trang ${pageNum}), phát biểu nào sau đây thể hiện đúng nội dung: "${sentence.slice(0, 80)}..."?`,
-      options: [
-        `Nội dung phân tích chính xác theo dữ kiện được trình bày ở Trang ${pageNum}.`,
-        `Khái niệm này áp dụng ngược lại so with nguyên lý thực tế của bài học.`,
-        `Nội dung này chưa bao quát đúng bối cảnh được trình bày trong tài liệu.`,
-        `Định nghĩa bị nhầm lẫn thuật ngữ so với tài liệu gốc.`
-      ],
-      correctAnswer: 0,
-      explanationCorrect: `Đáp án đúng vì dựa trực tiếp trên đoạn văn bản trích dẫn từ Trang ${pageNum}: "${sentence.slice(0, 120)}".`,
-      explanationIncorrect: `Các lựa chọn khác suy diễn sai hoặc đưa ra nhận định không nằm trong nội dung bài giảng.`,
-      optionExplanations: [
-        `Chính xác theo trích dẫn ở Trang ${pageNum}.`,
-        `Nhận định bị đảo ngược so với tài liệu.`,
-        `Nội dung thiếu bối cảnh cốt lõi.`,
-        `Nhầm lẫn thuật ngữ chuyên ngành.`
-      ],
-      citation: `[Trang ${pageNum}]`
-    });
-  }
-  return questions;
 }
 
 function renderQuiz(quizList) {
